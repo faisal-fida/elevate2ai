@@ -1,2 +1,6 @@
 /.env
 /logs
+pycaches
+/__pycache__/
+*.py[cod]
+*.pyc

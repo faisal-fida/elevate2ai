@@ -9,7 +9,7 @@ class AuthCRUD(BaseCRUD):
 
     def __init__(self):
         super().__init__()
-        self.set_table_name("auth.users")
+        self.set_table_name("users")
 
     async def create_from_auth(self, auth_user: Any) -> UserInDB:
         """Create or get user in public.users table from auth user data"""

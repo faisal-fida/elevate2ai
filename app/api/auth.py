@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 from jose import JWTError, jwt
 from supabase import create_client
-from datetime import datetime
 from app.config import settings
 from app.models.user import UserRole
 from app.models.user import UserInDB
@@ -52,20 +51,7 @@ async def get_current_user(token: str, require_admin: bool = False) -> UserInDB:
             print("User not found in database, creating new user")
             user = await user_crud.create_from_auth(auth_response.user)
 
-        print("User found:", user)
-
-        # Update UserInDB with latest auth data
-        user.email_verified = auth_response.user.email_confirmed_at is not None
-        user.full_name = auth_response.user.user_metadata.get("full_name")
-        user.avatar_url = auth_response.user.user_metadata.get("picture")
-        user.provider = auth_response.user.app_metadata.get("provider")
-        user.confirmed_at = auth_response.user.confirmed_at
-        user.last_sign_in_at = (
-            datetime.fromisoformat(str(auth_response.user.last_sign_in_at))
-            if auth_response.user.last_sign_in_at
-            else None
-        )
-        user.updated_at = auth_response.user.updated_at
+        user = UserInDB(**user)
 
         if require_admin and user.role != UserRole.ADMIN:
             raise HTTPException(
