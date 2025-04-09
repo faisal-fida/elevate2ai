@@ -4,3 +4,5 @@
 *.py[cod]
 *.pyc
 /migrations
+# egg info
+*.egg-info

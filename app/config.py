@@ -6,10 +6,14 @@ from pathlib import Path
 
 
 class Settings(BaseSettings):
-    ENVIRONMENT: Literal["development", "production"] = "development"
+    ENVIRONMENT: Literal["test", "development", "production"] = "development"
     PROJECT_NAME: str = "FastAPI Supabase Template"
     PROJECT_DESCRIPTION: str = "Production-ready FastAPI template with Supabase integration"
     LOG_LEVEL: str = "INFO"
+    
+    # Test Configuration
+    TEST_AUTH_TOKEN: str = "test_token"
+    TEST_ADMIN_AUTH_TOKEN: str = "test_admin_token"
 
     # Database configuration
     SUPABASE_URL: str = Field(..., env="SUPABASE_URL")

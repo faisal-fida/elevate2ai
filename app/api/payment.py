@@ -20,9 +20,6 @@ async def update_payment_status(
     """
     Update payment status for a client
     """
-    if not user.role == "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
-
     payment_crud = PaymentCRUD()
     updated_user = await payment_crud.update_payment_status(
         payment_status_update.client_email, payment_status_update.payment_status

@@ -30,7 +30,7 @@ async def root():
     return JSONResponse(content={"status": "ok"}, status_code=status.HTTP_200_OK)
 
 
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
+app.include_router(auth_router, tags=["auth"])
 app.include_router(payment_router, prefix="/payment", tags=["payment"])
 app.include_router(ai_router, prefix="/ai", tags=["ai"])
 app.include_router(media_router, prefix="/media", tags=["media"])

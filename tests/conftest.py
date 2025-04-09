@@ -1,11 +1,7 @@
-import os
 import pytest
 from fastapi.testclient import TestClient
-from dotenv import load_dotenv
 from app.main import app
-
-# Load environment variables from .env file
-load_dotenv()
+from tests.test_auth_utils import create_test_user_token, create_test_admin_token
 
 
 @pytest.fixture(scope="session")
@@ -16,10 +12,14 @@ def client():
 
 @pytest.fixture(scope="session")
 def auth_headers():
-    """Get authentication headers with Bearer token from environment variables"""
-    token = os.getenv("TEST_AUTH_TOKEN")
-    if not token:
-        raise ValueError("TEST_AUTH_TOKEN environment variable is not set")
+    """Get authentication headers with test user Bearer token"""
+    token = create_test_user_token()
+    return {"Authorization": f"Bearer {token}"}
+
+@pytest.fixture(scope="session")
+def admin_auth_headers():
+    """Get authentication headers with test admin Bearer token"""
+    token = create_test_admin_token()
     return {"Authorization": f"Bearer {token}"}
 
 

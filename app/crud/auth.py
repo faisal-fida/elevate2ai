@@ -21,10 +21,11 @@ class AuthCRUD(BaseCRUD):
             user_data = {
                 "id": auth_user.id,
                 "email": auth_user.email,
-                "full_name": auth_user.user_metadata.get("full_name"),
+                "email_verified": getattr(auth_user, 'email_verified', False),
+                "full_name": auth_user.user_metadata.get("full_name") if auth_user.user_metadata else None,
                 "role": "user",
                 "payment_status": False,
-                "created_at": auth_user.created_at.isoformat() if auth_user.created_at else None,
+                "created_at": auth_user.created_at.isoformat() if getattr(auth_user, 'created_at', None) else None,
             }
 
             result = await self.create(user_data)

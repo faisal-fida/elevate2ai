@@ -27,7 +27,13 @@ def test_invalid_token(client, base_url):
 
 def test_admin_access_non_admin(client, base_url, auth_headers):
     """Test accessing admin-only endpoint with non-admin user"""
-    # Assuming the user in auth_headers is not an admin
-    test_data = {"client_email": "test@example.com", "payment_status": True}
-    response = client.patch(f"{base_url}/status/", headers=auth_headers, json=test_data)
+    test_data = {"client_email": "faisal.fida.dev@gmail.com", "payment_status": True}
+    response = client.patch(f"{base_url}/payment/status/", headers=auth_headers, json=test_data)
     assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+def test_admin_access_admin(client, base_url, admin_auth_headers):
+    """Test accessing admin-only endpoint with admin user"""
+    test_data = {"client_email": "faisal.fida.dev@gmail.com", "payment_status": True}
+    response = client.patch(f"{base_url}/payment/status/", headers=admin_auth_headers, json=test_data)
+    assert response.status_code == status.HTTP_200_OK

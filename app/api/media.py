@@ -3,7 +3,7 @@ from typing import Optional, Literal
 from pydantic import BaseModel
 import requests
 from app.config import settings
-from app.api.auth import get_current_user
+from app.api.auth import get_user_dependency
 from app.models.user import UserInDB
 
 router = APIRouter()
@@ -76,12 +76,12 @@ def search_pixabay(query: str, limit: int):
     return []
 
 
-@router.get("/media/search", response_model=MediaSearchResponse)
+@router.get("/search", response_model=MediaSearchResponse)
 async def search_media(
-    query: str = Query(..., min_length=2),
-    fallback: bool = True,
-    limit: int = Query(4, ge=1, le=20),
-    current_user: UserInDB = Depends(get_current_user),
+    query: str = Query(..., min_length=2, description="Search query for media"),
+    fallback: bool = Query(True, description="Whether to use fallback services"),
+    limit: int = Query(4, ge=1, le=20, description="Number of results to return"),
+    current_user: UserInDB = Depends(get_user_dependency()),
 ):
     """
     Unified media search across Pexels, Unsplash, and Pixabay
