@@ -34,13 +34,10 @@ async def get_current_user(token: HTTPAuthorizationCredentials, require_admin: b
     )
 
     try:
-        # Use test secret key in test environment
-        secret_key = "test_secret_key" if settings.ENVIRONMENT == "test" else settings.SUPABASE_JWT_SECRET
-        
-        # Verify token with appropriate secret
+        # Verify token with Supabase JWT secret
         payload = jwt.decode(
             token.credentials,
-            secret_key,
+            settings.SUPABASE_JWT_SECRET,
             algorithms=["HS256"],
             audience="authenticated",
         )
@@ -48,17 +45,11 @@ async def get_current_user(token: HTTPAuthorizationCredentials, require_admin: b
         if email is None:
             raise credentials_exception
 
-        # Skip Supabase auth check in test environment
-        if settings.ENVIRONMENT != "test":
-            supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-            auth_response = supabase.auth.get_user(token.credentials)
-            if auth_response.user is None:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-            user_id = auth_response.user.id
-            user_email = auth_response.user.email
-        else:
-            user_id = payload.get("sub")
-            user_email = payload.get("email")
+        # Get user using Supabase Auth API
+        supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+        auth_response = supabase.auth.get_user(token.credentials)
+        if auth_response.user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         # Sync user with public.users table
         user_crud = AuthCRUD()

@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 class Settings(BaseSettings):
-    ENVIRONMENT: Literal["test", "development", "production"] = "development"
+    ENVIRONMENT: Literal["development", "production"] = "development"
     PROJECT_NAME: str = "FastAPI Supabase Template"
     PROJECT_DESCRIPTION: str = "Production-ready FastAPI template with Supabase integration"
     LOG_LEVEL: str = "INFO"

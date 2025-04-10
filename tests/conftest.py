@@ -1,7 +1,13 @@
+import os
 import pytest
+import jwt
+from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
+from dotenv import load_dotenv
 from app.main import app
-from tests.test_auth_utils import create_test_user_token, create_test_admin_token
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 @pytest.fixture(scope="session")
@@ -12,14 +18,24 @@ def client():
 
 @pytest.fixture(scope="session")
 def auth_headers():
-    """Get authentication headers with test user Bearer token"""
-    token = create_test_user_token()
+    """Generate test user JWT with regular user role"""
+    payload = {
+        "sub": "test_user",
+        "role": "user",
+        "exp": datetime.utcnow() + timedelta(minutes=30)
+    }
+    token = jwt.encode(payload, "test-secret-1234", algorithm="HS256")
     return {"Authorization": f"Bearer {token}"}
 
 @pytest.fixture(scope="session")
 def admin_auth_headers():
-    """Get authentication headers with test admin Bearer token"""
-    token = create_test_admin_token()
+    """Generate test admin JWT with admin role"""
+    payload = {
+        "sub": "test_admin",
+        "role": "admin",
+        "exp": datetime.utcnow() + timedelta(minutes=30)
+    }
+    token = jwt.encode(payload, "test-secret-1234", algorithm="HS256")
     return {"Authorization": f"Bearer {token}"}
 
 
