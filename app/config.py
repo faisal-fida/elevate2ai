@@ -20,15 +20,23 @@ class Settings(BaseSettings):
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
 
-    OPENAI_API_KEY: str = Field(..., env="OPENAI_API_KEY")
+    # Image Management Configuration
     PEXELS_API_KEY: str = Field(..., env="PEXELS_API_KEY")
     UNSPLASH_API_KEY: str = Field(..., env="UNSPLASH_API_KEY")
     PIXABAY_API_KEY: str = Field(..., env="PIXABAY_API_KEY")
 
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+    # OpenAI Configuration
+    OPENAI_API_KEY: str = Field(..., env="OPENAI_API_KEY")
+    OPENAI_MODEL: str = Field(default="gpt-4o-mini", env="OPENAI_MODEL")
+    OPENAI_TIMEOUT: float = Field(default=600.0, env="OPENAI_TIMEOUT")
+    OPENAI_MAX_RETRIES: int = Field(default=2, env="OPENAI_MAX_RETRIES")
 
-    SECURE_COOKIES: bool = False
-    TRUSTED_HOSTS: List[str] = ["localhost"]
+    # Security Configuration
+    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = Field(
+        default=["http://localhost:3000"], env="BACKEND_CORS_ORIGINS"
+    )
+    SECURE_COOKIES: bool = Field(default=False, env="SECURE_COOKIES")
+    TRUSTED_HOSTS: List[str] = Field(default=["*"], env="TRUSTED_HOSTS")
 
     LOG_DIR: Path = Path("logs")
     LOG_FORMAT: str = "%(levelname)s:     %(message)s"
@@ -37,6 +45,7 @@ class Settings(BaseSettings):
         case_sensitive = True
         env_file = ".env"
         env_file_encoding = "utf-8"
+        env_file_required = True
 
     def configure_logging(self) -> None:
         self.LOG_DIR.mkdir(exist_ok=True)
