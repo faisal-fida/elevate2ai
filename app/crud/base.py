@@ -1,6 +1,6 @@
 from typing import Any, Optional
-from supabase import create_client, Client
-from app.config import settings
+from supabase import Client
+from app.db.supabase_client import get_supabase_client
 import logging
 from fastapi import HTTPException, status
 
@@ -12,7 +12,7 @@ class BaseCRUD:
 
     def __init__(self):
         self.table_name = None
-        self.supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+        self.supabase: Client = get_supabase_client()
         self.logger = logging.getLogger(__name__)
 
     def set_table_name(self, table_name: str):

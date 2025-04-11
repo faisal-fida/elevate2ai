@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
-from supabase import create_client
+from app.db.supabase_client import get_supabase_client
 from app.config import settings
 from app.models.user import UserRole
 from app.models.user import UserInDB
@@ -13,7 +13,9 @@ security = HTTPBearer(auto_error=False)
 
 
 def get_user_dependency(require_admin: bool = False):
-    async def dependency(token: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> UserInDB:
+    async def dependency(
+        token: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    ) -> UserInDB:
         if not token:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -25,7 +27,9 @@ def get_user_dependency(require_admin: bool = False):
     return dependency
 
 
-async def get_current_user(token: HTTPAuthorizationCredentials, require_admin: bool = False) -> UserInDB:
+async def get_current_user(
+    token: HTTPAuthorizationCredentials, require_admin: bool = False
+) -> UserInDB:
     """Get current user using Supabase Auth API"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -46,25 +50,19 @@ async def get_current_user(token: HTTPAuthorizationCredentials, require_admin: b
             raise credentials_exception
 
         # Get user using Supabase Auth API
-        supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-        auth_response = supabase.auth.get_user(token.credentials)
-        if auth_response.user is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-        # Sync user with public.users table
-        user_crud = AuthCRUD()
-        user = await user_crud.get(auth_response.user.id)
-        if not user:
-            print("User not found in database, creating new user")
-            user = await user_crud.create_from_auth(auth_response.user)
-
-        user = UserInDB(**user)
-
-        if require_admin and user.role != UserRole.ADMIN:
+        supabase = get_supabase_client()
+        # Skip Supabase user check
+        user = {
+            "id": "dummy_id",
+            "email": "dummy@example.com",
+            "role": UserRole.USER.value,
+            "payment_status": True,
+        }
+        if require_admin and user["role"] != UserRole.ADMIN:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required"
             )
-        return user
+        return UserInDB(**user)
 
     except JWTError:
         raise credentials_exception

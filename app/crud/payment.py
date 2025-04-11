@@ -1,13 +1,13 @@
 from typing import Optional
-from supabase import create_client, Client
-from app.config import settings
+from supabase import Client  # Removed create_client
+from app.db.supabase_client import get_supabase_client  # Added import
 import logging
 from fastapi import HTTPException, status
 from app.models.user import UserInDB
 from app.crud.base import BaseCRUD
 
 logger = logging.getLogger(__name__)
-supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+# Removed global supabase client creation
 
 
 class PaymentCRUD(BaseCRUD):
@@ -19,6 +19,7 @@ class PaymentCRUD(BaseCRUD):
 
     async def get_by_email(self, email: str) -> Optional[UserInDB]:
         """Get user by email"""
+        supabase: Client = get_supabase_client()  # Get client instance
         try:
             result = supabase.table(self.table_name).select("*").eq("email", email).execute()
             if not result.data:
@@ -35,7 +36,11 @@ class PaymentCRUD(BaseCRUD):
         self, client_email: str, payment_status: bool
     ) -> Optional[UserInDB]:
         """Update payment status for a user by email"""
+        supabase: Client = get_supabase_client()  # Get client instance
         try:
+            # Note: self.get_by_email will now also get its own client instance.
+            # This is slightly redundant but works for now.
+            # A better approach might involve passing the client via dependency injection.
             client = await self.get_by_email(client_email)
             if not client:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
