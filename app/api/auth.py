@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
-from app.db.supabase_client import get_supabase_client
 from app.config import settings
 from app.models.user import UserRole
 from app.models.user import UserInDB
@@ -38,7 +37,6 @@ async def get_current_user(
     )
 
     try:
-        # Verify token with Supabase JWT secret
         payload = jwt.decode(
             token.credentials,
             settings.SUPABASE_JWT_SECRET,
@@ -46,18 +44,13 @@ async def get_current_user(
             audience="authenticated",
         )
         email: str = payload.get("email")
+
         if email is None:
             raise credentials_exception
 
-        # Get user using Supabase Auth API
-        supabase = get_supabase_client()
-        # Skip Supabase user check
-        user = {
-            "id": "dummy_id",
-            "email": "dummy@example.com",
-            "role": UserRole.USER.value,
-            "payment_status": True,
-        }
+        auth_crud = AuthCRUD()
+        user = await auth_crud.get_by_email(email)
+
         if require_admin and user["role"] != UserRole.ADMIN:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required"

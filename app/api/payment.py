@@ -17,9 +17,6 @@ async def update_payment_status(
     payment_status_update: PaymentStatusUpdate,
     user: UserInDB = Depends(get_user_dependency(require_admin=True)),
 ):
-    """
-    Update payment status for a client
-    """
     payment_crud = PaymentCRUD()
     updated_user = await payment_crud.update_payment_status(
         payment_status_update.client_email, payment_status_update.payment_status

@@ -1,21 +1,15 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import logging
 from app.config import settings
 from app.api.auth import router as auth_router
 from app.api.payment import router as payment_router
 from app.api.ai import router as ai_router
 from app.api.media import router as media_router
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
-
 
 app = FastAPI(title=settings.PROJECT_NAME, description=settings.PROJECT_DESCRIPTION)
 
-# Set up CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,

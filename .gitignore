@@ -1,8 +1,4 @@
 /.env
 /logs
-/pycache/*
-*.py[cod]
-*.pyc
 /migrations
-# egg info
-*.egg-info
+__pycache__/

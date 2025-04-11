@@ -10,26 +10,26 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "FastAPI Supabase Template"
     PROJECT_DESCRIPTION: str = "Production-ready FastAPI template with Supabase integration"
     LOG_LEVEL: str = "INFO"
-    
-    # Test Configuration
+
     TEST_AUTH_TOKEN: str = "test_token"
     TEST_ADMIN_AUTH_TOKEN: str = "test_admin_token"
 
-    # Database configuration
     SUPABASE_URL: str = Field(..., env="SUPABASE_URL")
     SUPABASE_KEY: str = Field(..., env="SUPABASE_KEY")
     SUPABASE_JWT_SECRET: str = Field(..., env="SUPABASE_JWT_SECRET")
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
 
-    # CORS
+    OPENAI_API_KEY: str = Field(..., env="OPENAI_API_KEY")
+    PEXELS_API_KEY: str = Field(..., env="PEXELS_API_KEY")
+    UNSPLASH_API_KEY: str = Field(..., env="UNSPLASH_API_KEY")
+    PIXABAY_API_KEY: str = Field(..., env="PIXABAY_API_KEY")
+
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
 
-    # Security
     SECURE_COOKIES: bool = False
     TRUSTED_HOSTS: List[str] = ["localhost"]
 
-    # Logging
     LOG_DIR: Path = Path("logs")
     LOG_FORMAT: str = "%(levelname)s:     %(message)s"
 
