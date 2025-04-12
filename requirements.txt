@@ -9,3 +9,5 @@ supabase
 python-dotenv
 openai
 requests
+pydantic[email]
+

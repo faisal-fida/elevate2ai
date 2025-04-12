@@ -4,8 +4,6 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.api.auth import router as auth_router
 from app.api.payment import router as payment_router
-from app.api.ai import router as ai_router
-from app.api.media import router as media_router
 
 
 app = FastAPI(title=settings.PROJECT_NAME, description=settings.PROJECT_DESCRIPTION)
@@ -26,5 +24,3 @@ async def root():
 
 app.include_router(auth_router, tags=["auth"])
 app.include_router(payment_router, prefix="/payment", tags=["payment"])
-app.include_router(ai_router, prefix="/ai", tags=["ai"])
-app.include_router(media_router, prefix="/media", tags=["media"])
