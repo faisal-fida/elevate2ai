@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     OPENAI_TIMEOUT: float = Field(default=600.0, env="OPENAI_TIMEOUT")
     OPENAI_MAX_RETRIES: int = Field(default=2, env="OPENAI_MAX_RETRIES")
 
+    # WhatsApp Configuration
+    WHATSAPP_TOKEN: str = Field(..., env="WHATSAPP_TOKEN")
+    WHATSAPP_PHONE_NUMBER_ID: str = Field(..., env="WHATSAPP_PHONE_NUMBER_ID")
+
     # Security Configuration
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = Field(
         default=["http://localhost:3000"], env="BACKEND_CORS_ORIGINS"
