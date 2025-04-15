@@ -137,7 +137,68 @@ class WhatsAppService:
 
 
 
+def test_whatsapp_service():
+    whatsapp = WhatsAppService()
+    test_number = "+923408957390"	
+    
+    response = whatsapp.send_message(
+        to=test_number,
+        message="Hello! This is a test message."
+    )
+    print("Simple message response:", response)
+    
+    template_response = whatsapp.send_template(
+        to=test_number,
+        template="hello_world",  # Replace with your template name
+        language="en",
+        components=[]  # Add components if your template requires them
+    )
+    print("Template message response:", template_response)
+    
+    image_url = "https://example.com/test-image.jpg"
+    whatsapp.send_image(
+        to=test_number,
+        image=image_url,
+        caption="Test image caption"
+    )
+    
+    whatsapp.send_location(
+        to=test_number,
+        latitude=37.4220,
+        longitude=-122.0841,
+        name="Test Location",
+        address="1 Hacker Way, Mountain View, CA"
+    )
+    
+    button_data = {
+        "body": "Please choose an option:",
+        "buttons": [
+            {
+                "type": "reply",
+                "reply": {
+                    "id": "unique-id-1",
+                    "title": "Button 1"
+                }
+            },
+            {
+                "type": "reply",
+                "reply": {
+                    "id": "unique-id-2",
+                    "title": "Button 2"
+                }
+            }
+        ]
+    }
+    whatsapp.send_button(to=test_number, button_data=button_data)
+
+
+
 if __name__ == "__main__":
-    # Example usage
-    whatsapp_service = WhatsAppService()
-    response = whatsapp_service.send_message("+2348035080151", "Hello, this is a test message!")
+    whatsapp = WhatsAppService()
+    test_number = "+923408957390"	
+    
+    response = whatsapp.send_message(
+        to=test_number,
+        message="Hello! This is a test message."
+    )
+    print("Simple message response:", response)
