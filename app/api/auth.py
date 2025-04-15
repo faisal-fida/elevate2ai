@@ -53,7 +53,8 @@ async def get_current_user(
 
         if require_admin and user["role"] != UserRole.ADMIN:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required"
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin privileges required",
             )
         return UserInDB(**user)
 

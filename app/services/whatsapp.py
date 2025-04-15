@@ -9,8 +9,10 @@ from app.config import settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def retry_on_failure(max_retries=3, delay=1):
     """Decorator for retrying failed WhatsApp API calls"""
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -23,11 +25,16 @@ def retry_on_failure(max_retries=3, delay=1):
                     if retries == max_retries:
                         logger.error(f"Failed after {max_retries} retries: {str(e)}")
                         raise
-                    logger.warning(f"Attempt {retries} failed, retrying in {delay} seconds...")
+                    logger.warning(
+                        f"Attempt {retries} failed, retrying in {delay} seconds..."
+                    )
                     sleep(delay)
             return None
+
         return wrapper
+
     return decorator
+
 
 class WhatsAppService:
     def __init__(self, token: str = None, phone_number_id: str = None):
@@ -38,7 +45,9 @@ class WhatsAppService:
         logger.info("WhatsApp service initialized")
 
     @retry_on_failure()
-    def send_message(self, to: str, message: str, preview_url: bool = False) -> Dict[str, Any]:
+    def send_message(
+        self, to: str, message: str, preview_url: bool = False
+    ) -> Dict[str, Any]:
         """Send a text message to a WhatsApp number"""
         try:
             response = self.messenger.send_message(message, to, preview_url=preview_url)
@@ -49,7 +58,9 @@ class WhatsAppService:
             raise
 
     @retry_on_failure()
-    def send_template(self, to: str, template: str, language: str, components: List[Dict] = None) -> Dict[str, Any]:
+    def send_template(
+        self, to: str, template: str, language: str, components: List[Dict] = None
+    ) -> Dict[str, Any]:
         """Send a template message"""
         try:
             response = self.messenger.send_template(template, to, language, components)
@@ -60,10 +71,14 @@ class WhatsAppService:
             raise
 
     @retry_on_failure()
-    def send_image(self, to: str, image: str, caption: Optional[str] = None) -> Dict[str, Any]:
+    def send_image(
+        self, to: str, image: str, caption: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Send an image message"""
         try:
-            response = self.messenger.send_image(image=image, recipient_id=to, caption=caption)
+            response = self.messenger.send_image(
+                image=image, recipient_id=to, caption=caption
+            )
             logger.info(f"Image sent successfully to {to}")
             return response
         except Exception as e:
@@ -71,10 +86,14 @@ class WhatsAppService:
             raise
 
     @retry_on_failure()
-    def send_document(self, to: str, document: str, caption: Optional[str] = None) -> Dict[str, Any]:
+    def send_document(
+        self, to: str, document: str, caption: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Send a document"""
         try:
-            response = self.messenger.send_document(document=document, recipient_id=to, caption=caption)
+            response = self.messenger.send_document(
+                document=document, recipient_id=to, caption=caption
+            )
             logger.info(f"Document sent successfully to {to}")
             return response
         except Exception as e:
@@ -93,10 +112,14 @@ class WhatsAppService:
             raise
 
     @retry_on_failure()
-    def send_video(self, to: str, video: str, caption: Optional[str] = None) -> Dict[str, Any]:
+    def send_video(
+        self, to: str, video: str, caption: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Send a video message"""
         try:
-            response = self.messenger.send_video(video=video, recipient_id=to, caption=caption)
+            response = self.messenger.send_video(
+                video=video, recipient_id=to, caption=caption
+            )
             logger.info(f"Video sent successfully to {to}")
             return response
         except Exception as e:
@@ -104,10 +127,23 @@ class WhatsAppService:
             raise
 
     @retry_on_failure()
-    def send_location(self, to: str, latitude: float, longitude: float, name: Optional[str] = None, address: Optional[str] = None) -> Dict[str, Any]:
+    def send_location(
+        self,
+        to: str,
+        latitude: float,
+        longitude: float,
+        name: Optional[str] = None,
+        address: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Send a location"""
         try:
-            response = self.messenger.send_location(lat=latitude, long=longitude, name=name, address=address, recipient_id=to)
+            response = self.messenger.send_location(
+                lat=latitude,
+                long=longitude,
+                name=name,
+                address=address,
+                recipient_id=to,
+            )
             logger.info(f"Location sent successfully to {to}")
             return response
         except Exception as e:
@@ -136,69 +172,49 @@ class WhatsAppService:
             raise
 
 
-
 def test_whatsapp_service():
     whatsapp = WhatsAppService()
-    test_number = "+923408957390"	
-    
+    test_number = "+923408957390"
+
     response = whatsapp.send_message(
-        to=test_number,
-        message="Hello! This is a test message."
+        to=test_number, message="Hello! This is a test message."
     )
     print("Simple message response:", response)
-    
+
     template_response = whatsapp.send_template(
         to=test_number,
         template="hello_world",  # Replace with your template name
         language="en",
-        components=[]  # Add components if your template requires them
+        components=[],  # Add components if your template requires them
     )
     print("Template message response:", template_response)
-    
+
     image_url = "https://example.com/test-image.jpg"
-    whatsapp.send_image(
-        to=test_number,
-        image=image_url,
-        caption="Test image caption"
-    )
-    
+    whatsapp.send_image(to=test_number, image=image_url, caption="Test image caption")
+
     whatsapp.send_location(
         to=test_number,
         latitude=37.4220,
         longitude=-122.0841,
         name="Test Location",
-        address="1 Hacker Way, Mountain View, CA"
+        address="1 Hacker Way, Mountain View, CA",
     )
-    
+
     button_data = {
         "body": "Please choose an option:",
         "buttons": [
-            {
-                "type": "reply",
-                "reply": {
-                    "id": "unique-id-1",
-                    "title": "Button 1"
-                }
-            },
-            {
-                "type": "reply",
-                "reply": {
-                    "id": "unique-id-2",
-                    "title": "Button 2"
-                }
-            }
-        ]
+            {"type": "reply", "reply": {"id": "unique-id-1", "title": "Button 1"}},
+            {"type": "reply", "reply": {"id": "unique-id-2", "title": "Button 2"}},
+        ],
     }
     whatsapp.send_button(to=test_number, button_data=button_data)
 
 
-
 if __name__ == "__main__":
     whatsapp = WhatsAppService()
-    test_number = "+923408957390"	
-    
+    test_number = "+923408957390"
+
     response = whatsapp.send_message(
-        to=test_number,
-        message="Hello! This is a test message."
+        to=test_number, message="Hello! This is a test message."
     )
     print("Simple message response:", response)

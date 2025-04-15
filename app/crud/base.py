@@ -24,7 +24,9 @@ class BaseCRUD:
     async def get(self, id: str) -> Optional[Any]:
         """Get a record by ID"""
         try:
-            result = self.supabase.table(self.table_name).select("*").eq("id", id).execute()
+            result = (
+                self.supabase.table(self.table_name).select("*").eq("id", id).execute()
+            )
             if not result.data:
                 return None
             return result.data[0]
@@ -41,7 +43,8 @@ class BaseCRUD:
             result = self.supabase.table(self.table_name).insert(data).execute()
             if not result.data:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create record"
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Failed to create record",
                 )
             return result.data[0]
         except Exception as e:
@@ -54,10 +57,13 @@ class BaseCRUD:
     async def update(self, id: str, data: dict) -> Optional[Any]:
         """Update a record by ID"""
         try:
-            result = self.supabase.table(self.table_name).update(data).eq("id", id).execute()
+            result = (
+                self.supabase.table(self.table_name).update(data).eq("id", id).execute()
+            )
             if not result.data:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to update record"
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Failed to update record",
                 )
             return result.data[0]
         except Exception as e:
@@ -70,10 +76,13 @@ class BaseCRUD:
     async def delete(self, id: str) -> Optional[Any]:
         """Delete a record by ID"""
         try:
-            result = self.supabase.table(self.table_name).delete().eq("id", id).execute()
+            result = (
+                self.supabase.table(self.table_name).delete().eq("id", id).execute()
+            )
             if not result.data:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete record"
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Failed to delete record",
                 )
             return result.data[0]
         except Exception as e:

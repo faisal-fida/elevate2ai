@@ -21,7 +21,9 @@ class PaymentCRUD(BaseCRUD):
         """Get user by email"""
         supabase: Client = get_supabase_client()  # Get client instance
         try:
-            result = supabase.table(self.table_name).select("*").eq("email", email).execute()
+            result = (
+                supabase.table(self.table_name).select("*").eq("email", email).execute()
+            )
             if not result.data:
                 return None
             return UserInDB(**result.data[0])
@@ -43,7 +45,9 @@ class PaymentCRUD(BaseCRUD):
             # A better approach might involve passing the client via dependency injection.
             client = await self.get_by_email(client_email)
             if not client:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                )
 
             # Update the payment status
             update_data = {"payment_status": payment_status}
@@ -60,7 +64,9 @@ class PaymentCRUD(BaseCRUD):
                 )
             return UserInDB(**result.data[0])
         except Exception as e:
-            self.logger.error(f"Error updating payment status for client {client_email}: {str(e)}")
+            self.logger.error(
+                f"Error updating payment status for client {client_email}: {str(e)}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error processing payment status update",

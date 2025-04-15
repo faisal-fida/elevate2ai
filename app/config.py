@@ -8,7 +8,9 @@ from pathlib import Path
 class Settings(BaseSettings):
     ENVIRONMENT: Literal["development", "production"] = "development"
     PROJECT_NAME: str = "FastAPI Supabase Template"
-    PROJECT_DESCRIPTION: str = "Production-ready FastAPI template with Supabase integration"
+    PROJECT_DESCRIPTION: str = (
+        "Production-ready FastAPI template with Supabase integration"
+    )
     LOG_LEVEL: str = "INFO"
 
     TEST_AUTH_TOKEN: str = "test_token"
@@ -56,7 +58,10 @@ class Settings(BaseSettings):
         logging.basicConfig(
             level=self.LOG_LEVEL,
             format=self.LOG_FORMAT,
-            handlers=[logging.StreamHandler(), logging.FileHandler(self.LOG_DIR / "app.log")],
+            handlers=[
+                logging.StreamHandler(),
+                logging.FileHandler(self.LOG_DIR / "app.log"),
+            ],
         )
 
 

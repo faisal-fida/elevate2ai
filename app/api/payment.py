@@ -22,6 +22,8 @@ async def update_payment_status(
         payment_status_update.client_email, payment_status_update.payment_status
     )
     if not updated_user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     return updated_user

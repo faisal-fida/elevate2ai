@@ -16,7 +16,9 @@ def get_supabase_client() -> Client:
     if supabase_client is None:
         logger.info("Initializing Supabase client...")
         try:
-            supabase_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+            supabase_client = create_client(
+                settings.SUPABASE_URL, settings.SUPABASE_KEY
+            )
             logger.info("Supabase client initialized successfully.")
         except Exception as e:
             logger.error(f"Failed to initialize Supabase client: {e}", exc_info=True)
