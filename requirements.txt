@@ -11,3 +11,4 @@ openai
 requests
 pydantic[email]
 httpx
+requests-toolbelt

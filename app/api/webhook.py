@@ -2,11 +2,13 @@ from typing import Dict, Any
 from fastapi import Response, Depends
 from app.services.whatsapp import WhatsAppService
 from app.config import settings
+from wa import ContentWorkflow
 import logging
 
 logger = logging.getLogger(__name__)
 
 whatsapp_service = WhatsAppService()
+workflow = ContentWorkflow(whatsapp_service.messenger)
 
 async def get_whatsapp_service() -> WhatsAppService:
     return whatsapp_service
@@ -39,7 +41,7 @@ async def handle_message(
                 if message_type == "text":
                     message = messenger.get_message(data)
                     logger.info(f"Message: {message}")
-                    await whatsapp.send_message(to=mobile, message=f"Hi {name}, nice to connect with you")
+                    await workflow.process_message(mobile, message)
                 
                 elif message_type == "interactive":
                     message_response = messenger.get_interactive_response(data)
