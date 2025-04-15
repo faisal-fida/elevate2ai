@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     # WhatsApp Configuration
     WHATSAPP_TOKEN: str = Field(..., env="WHATSAPP_TOKEN")
     WHATSAPP_PHONE_NUMBER_ID: str = Field(..., env="WHATSAPP_PHONE_NUMBER_ID")
+    WHATSAPP_VERIFY_TOKEN: str = Field(..., env="WHATSAPP_VERIFY_TOKEN")
 
     # Security Configuration
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = Field(
