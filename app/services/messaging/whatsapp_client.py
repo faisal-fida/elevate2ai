@@ -3,8 +3,9 @@ from typing import Optional
 import httpx
 import logging
 from datetime import datetime
-
-from .core import MessageHandler, MediaHandler, TemplateHandler
+from .messages import MessageHandler
+from .media import MediaHandler
+from .templates import TemplateHandler
 
 class WhatsApp(MessageHandler, MediaHandler, TemplateHandler):
     """Main WhatsApp class that combines all functionality for the FastAPI backend system."""

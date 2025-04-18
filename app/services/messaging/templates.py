@@ -1,12 +1,10 @@
 from __future__ import annotations
 import logging
 import httpx
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from .base import WhatsAppBase
 
 class TemplateHandler(WhatsAppBase):
-    """Handles WhatsApp message templates and interactive components."""
-
     async def send_template(
         self, 
         template: str, 
@@ -15,18 +13,7 @@ class TemplateHandler(WhatsAppBase):
         lang: str = "en_US",
         recipient_type: str = "individual"
     ) -> Dict[str, Any]:
-        """Send a template message.
-
-        Args:
-            template: Template name
-            recipient_id: Recipient's phone number without +
-            components: List of template components
-            lang: Template language code
-            recipient_type: Either 'individual' or 'group'
-
-        Returns:
-            API response dictionary
-        """
+        """Send a template message"""
         data = {
             "messaging_product": "whatsapp",
             "recipient_type": recipient_type,
@@ -54,16 +41,7 @@ class TemplateHandler(WhatsAppBase):
         button_data: Dict[str, Any],
         recipient_type: str = "individual"
     ) -> Dict[str, Any]:
-        """Send an interactive button message.
-
-        Args:
-            recipient_id: Recipient's phone number without +
-            button_data: Button configuration data
-            recipient_type: Either 'individual' or 'group'
-
-        Returns:
-            API response dictionary
-        """
+        """Send an interactive button message"""
         data = {
             "messaging_product": "whatsapp",
             "recipient_type": recipient_type,
@@ -90,19 +68,7 @@ class TemplateHandler(WhatsAppBase):
         recipient_id: str,
         recipient_type: str = "individual"
     ) -> Dict[str, Any]:
-        """Send a location message.
-
-        Args:
-            lat: Latitude coordinate
-            long: Longitude coordinate
-            name: Location name
-            address: Location address
-            recipient_id: Recipient's phone number without +
-            recipient_type: Either 'individual' or 'group'
-
-        Returns:
-            API response dictionary
-        """
+        """Send a location message"""
         data = {
             "messaging_product": "whatsapp",
             "recipient_type": recipient_type,

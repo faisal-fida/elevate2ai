@@ -1,8 +1,8 @@
 from typing import Dict, Any
 from fastapi import APIRouter, Response, Query
-from heyoo.whatsapp import WhatsApp
+from whatsapp.whatsapp import WhatsApp
 from app.config import settings
-from wa import ContentWorkflow
+from app.services.messaging.workflow import ContentWorkflow
 import logging
 
 logger = logging.getLogger(__name__)

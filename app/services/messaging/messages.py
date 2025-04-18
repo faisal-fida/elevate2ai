@@ -1,12 +1,10 @@
 from __future__ import annotations
 import logging
 import httpx
-from typing import Dict, Any, Union, Optional
+from typing import Dict, Any, Union
 from .base import WhatsAppBase
 
 class MessageHandler(WhatsAppBase):
-    """Handles sending and receiving WhatsApp messages."""
-
     async def send_message(
         self, 
         message: str, 
@@ -14,17 +12,7 @@ class MessageHandler(WhatsAppBase):
         recipient_type: str = "individual", 
         preview_url: bool = True
     ) -> Dict[str, Any]:
-        """Send a text message to a WhatsApp user.
-
-        Args:
-            message: Message text to send
-            recipient_id: Recipient's phone number without +
-            recipient_type: Either 'individual' or 'group'
-            preview_url: Whether to generate URL previews
-
-        Returns:
-            API response dictionary
-        """
+        """Send a text message to a WhatsApp user"""
         data = {
             "messaging_product": "whatsapp",
             "recipient_type": recipient_type,
@@ -49,17 +37,7 @@ class MessageHandler(WhatsAppBase):
         recipient_id: str, 
         recipient_type: str = "individual"
     ) -> Dict[str, Any]:
-        """Send a reaction to a message.
-
-        Args:
-            emoji: Reaction emoji (e.g. '\uD83D\uDE00' for 😀)
-            message_id: ID of message to react to
-            recipient_id: Recipient's phone number without +
-            recipient_type: Either 'individual' or 'group'
-
-        Returns:
-            API response dictionary
-        """
+        """Send a reaction to a message"""
         data = {
             "messaging_product": "whatsapp",
             "recipient_type": recipient_type,
@@ -84,17 +62,7 @@ class MessageHandler(WhatsAppBase):
         message: str, 
         preview_url: bool = True
     ) -> Dict[str, Any]:
-        """Reply to a specific message.
-
-        Args:
-            message_id: ID of message to reply to
-            recipient_id: Recipient's phone number without +
-            message: Reply message text
-            preview_url: Whether to generate URL previews
-
-        Returns:
-            API response dictionary
-        """
+        """Reply to a specific message"""
         data = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
@@ -114,28 +82,14 @@ class MessageHandler(WhatsAppBase):
         return response.json()
 
     def get_message(self, data: Dict[Any, Any]) -> Union[str, None]:
-        """Extract message text from webhook data.
-
-        Args:
-            data: Webhook data dictionary
-
-        Returns:
-            Message text if present, None otherwise
-        """
+        """Extract message text from webhook data"""
         data = self.preprocess(data)
         if "messages" in data:
             return data["messages"][0]["text"]["body"]
         return None
 
     def get_message_type(self, data: Dict[Any, Any]) -> Union[str, None]:
-        """Get message type from webhook data.
-
-        Args:
-            data: Webhook data dictionary
-
-        Returns:
-            Message type if present, None otherwise
-        """
+        """Get message type from webhook data"""
         data = self.preprocess(data)
         if "messages" in data:
             return data["messages"][0]["type"]

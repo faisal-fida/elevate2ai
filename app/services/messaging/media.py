@@ -8,8 +8,6 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 from .base import WhatsAppBase
 
 class MediaHandler(WhatsAppBase):
-    """Handles sending media messages via WhatsApp."""
-
     async def send_image(
         self, 
         image: str, 
@@ -17,17 +15,6 @@ class MediaHandler(WhatsAppBase):
         caption: Optional[str] = None,
         recipient_type: str = "individual"
     ) -> Dict[str, Any]:
-        """Send an image message.
-
-        Args:
-            image: URL or file path of image
-            recipient_id: Recipient's phone number without +
-            caption: Optional image caption
-            recipient_type: Either 'individual' or 'group'
-
-        Returns:
-            API response dictionary
-        """
         if os.path.exists(image):
             # Handle local file
             mime_type = mimetypes.guess_type(image)[0]
@@ -76,17 +63,6 @@ class MediaHandler(WhatsAppBase):
         caption: Optional[str] = None,
         recipient_type: str = "individual"
     ) -> Dict[str, Any]:
-        """Send a video message.
-
-        Args:
-            video: URL or file path of video
-            recipient_id: Recipient's phone number without +
-            caption: Optional video caption
-            recipient_type: Either 'individual' or 'group'
-
-        Returns:
-            API response dictionary
-        """
         if os.path.exists(video):
             mime_type = mimetypes.guess_type(video)[0]
             media = MultipartEncoder(
@@ -133,17 +109,7 @@ class MediaHandler(WhatsAppBase):
         caption: Optional[str] = None,
         recipient_type: str = "individual"
     ) -> Dict[str, Any]:
-        """Send a document.
-
-        Args:
-            document: URL or file path of document
-            recipient_id: Recipient's phone number without +
-            caption: Optional document caption
-            recipient_type: Either 'individual' or 'group'
-
-        Returns:
-            API response dictionary
-        """
+        """Send a document"""
         if os.path.exists(document):
             mime_type = mimetypes.guess_type(document)[0]
             media = MultipartEncoder(
@@ -189,16 +155,7 @@ class MediaHandler(WhatsAppBase):
         recipient_id: str,
         recipient_type: str = "individual"
     ) -> Dict[str, Any]:
-        """Send an audio message.
-
-        Args:
-            audio: URL or file path of audio file
-            recipient_id: Recipient's phone number without +
-            recipient_type: Either 'individual' or 'group'
-
-        Returns:
-            API response dictionary
-        """
+        """Send an audio message"""
         if os.path.exists(audio):
             mime_type = mimetypes.guess_type(audio)[0]
             media = MultipartEncoder(
