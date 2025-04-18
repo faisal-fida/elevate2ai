@@ -4,13 +4,14 @@ import httpx
 from typing import Dict, Any, Union
 from .base import WhatsAppBase
 
+
 class MessageHandler(WhatsAppBase):
     async def send_message(
-        self, 
-        message: str, 
-        recipient_id: str, 
-        recipient_type: str = "individual", 
-        preview_url: bool = True
+        self,
+        message: str,
+        recipient_id: str,
+        recipient_type: str = "individual",
+        preview_url: bool = True,
     ) -> Dict[str, Any]:
         """Send a text message to a WhatsApp user"""
         data = {
@@ -31,11 +32,7 @@ class MessageHandler(WhatsAppBase):
         return response.json()
 
     async def send_reaction(
-        self, 
-        emoji: str, 
-        message_id: str, 
-        recipient_id: str, 
-        recipient_type: str = "individual"
+        self, emoji: str, message_id: str, recipient_id: str, recipient_type: str = "individual"
     ) -> Dict[str, Any]:
         """Send a reaction to a message"""
         data = {
@@ -56,11 +53,7 @@ class MessageHandler(WhatsAppBase):
         return response.json()
 
     async def reply_to_message(
-        self, 
-        message_id: str, 
-        recipient_id: str, 
-        message: str, 
-        preview_url: bool = True
+        self, message_id: str, recipient_id: str, message: str, preview_url: bool = True
     ) -> Dict[str, Any]:
         """Reply to a specific message"""
         data = {

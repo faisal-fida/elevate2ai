@@ -5,14 +5,14 @@ import logging
 from app.services.messaging.whatsapp_client import WhatsApp
 from app.services.messaging.message_handler import MessageHandler
 from app.services.messaging.state_manager import StateManager, WorkflowState
-from app.services.messaging.content_generator import ContentGenerator
-from app.services.chat import openai_service
+from .generator import ContentGenerator
+
 
 class ContentWorkflow:
     def __init__(self, whatsapp: WhatsApp):
         self.message_handler = MessageHandler(whatsapp)
         self.state_manager = StateManager()
-        self.content_generator = ContentGenerator(openai_service)
+        self.content_generator = ContentGenerator()
         self.message_queue: Dict[str, asyncio.Queue] = {}
 
     def _get_message_queue(self, client_id: str) -> asyncio.Queue:
@@ -26,39 +26,38 @@ class ContentWorkflow:
         if message.lower() == "hi":
             await self.message_handler.send_message(
                 phone_number=client_id,
-                text="👋 Welcome! Please share your promotional text and I'll help you create engaging content."
+                text="👋 Welcome! Please share your promotional text and I'll help you create engaging content.",
             )
             self.state_manager.set_state(client_id, WorkflowState.WAITING_FOR_PROMO)
         else:
             await self.message_handler.send_message(
-                phone_number=client_id,
-                text="👋 Please start by saying 'Hi'!"
+                phone_number=client_id, text="👋 Please start by saying 'Hi'!"
             )
 
     async def _handle_promo_text(self, client_id: str, message: str) -> None:
         """Handle promotional text input and generate content."""
         await self.message_handler.send_message(
-            phone_number=client_id,
-            text="🎨 Generating engaging content for your promotion..."
+            phone_number=client_id, text="🎨 Generating engaging content for your promotion..."
         )
 
         caption, image_url = await self.content_generator.generate_content(message)
 
-        self.state_manager.set_context(client_id, {
-            "caption": caption,
-            "image_url": image_url,
-            "original_text": message,
-        })
+        self.state_manager.set_context(
+            client_id,
+            {
+                "caption": caption,
+                "image_url": image_url,
+                "original_text": message,
+            },
+        )
 
         await self.message_handler.send_media(
-            phone_number=client_id,
-            media_url=image_url,
-            caption=caption
+            phone_number=client_id, media_url=image_url, caption=caption
         )
 
         await self.message_handler.send_message(
             phone_number=client_id,
-            text="Please reply with 'approve' to use this content or 'reject' to generate a new variation."
+            text="Please reply with 'approve' to use this content or 'reject' to generate a new variation.",
         )
 
         self.state_manager.set_state(client_id, WorkflowState.WAITING_FOR_APPROVAL)
@@ -72,41 +71,36 @@ class ContentWorkflow:
             await self.message_handler.send_message(
                 phone_number=client_id,
                 text="✅ Great! Your content has been finalized:\n\n"
-                    + f"Caption: {context.get('caption')}\n"
-                    + f"Image URL: {context.get('image_url')}"
+                + f"Caption: {context.get('caption')}\n"
+                + f"Image URL: {context.get('image_url')}",
             )
             self.state_manager.reset_client(client_id)
 
         elif message == "reject":
             await self.message_handler.send_message(
-                phone_number=client_id,
-                text="🔄 Let me generate a new variation for you..."
+                phone_number=client_id, text="🔄 Let me generate a new variation for you..."
             )
 
             caption, image_url = await self.content_generator.generate_content(
                 context.get("original_text", "")
             )
 
-            self.state_manager.update_context(client_id, {
-                "caption": caption,
-                "image_url": image_url
-            })
+            self.state_manager.update_context(
+                client_id, {"caption": caption, "image_url": image_url}
+            )
 
             await self.message_handler.send_media(
-                phone_number=client_id,
-                media_url=image_url,
-                caption=caption
+                phone_number=client_id, media_url=image_url, caption=caption
             )
 
             await self.message_handler.send_message(
                 phone_number=client_id,
-                text="Please reply with 'approve' to use this content or 'reject' to generate a new variation."
+                text="Please reply with 'approve' to use this content or 'reject' to generate a new variation.",
             )
 
         else:
             await self.message_handler.send_message(
-                phone_number=client_id,
-                text="Please reply with either 'approve' or 'reject'."
+                phone_number=client_id, text="Please reply with either 'approve' or 'reject'."
             )
 
     async def _message_processor(self, client_id: str) -> None:
