@@ -14,28 +14,21 @@ def search_images(query: str, limit: int = 10) -> List[Dict[str, Any]]:
 
     with ThreadPoolExecutor(max_workers=3) as executor:
         futures = {
-            executor.submit(provider, query, limit): provider.__name__
-            for provider in providers
+            executor.submit(provider, query, limit): provider.__name__ for provider in providers
         }
         for future in as_completed(futures):
             provider_name = futures[future]
             try:
                 provider_results = future.result()
                 if provider_results:
-                    logging.info(
-                        f"Retrieved results from {provider_name} successfully."
-                    )
+                    logging.info(f"Retrieved results from {provider_name} successfully.")
                     return provider_results
                 else:
-                    logging.warning(
-                        f"No results from {provider_name}, checking next provider."
-                    )
+                    logging.warning(f"No results from {provider_name}, checking next provider.")
             except Exception as e:
                 logging.error(f"Error retrieving results from {provider_name}: {e}")
 
-    logging.warning(
-        "All providers returned no results or errors. Returning empty list."
-    )
+    logging.warning("All providers returned no results or errors. Returning empty list.")
     return results
 
 
@@ -97,9 +90,3 @@ def pixabay(query: str, limit: int = 10) -> List[Dict[str, Any]]:
     except requests.exceptions.RequestException as e:
         logging.error("Error searching photos from Pixabay: %s", e)
         return []
-
-
-if __name__ == "__main__":
-    query = "nature"
-    results = search_images(query)
-    print(results)

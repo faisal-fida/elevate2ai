@@ -1,7 +1,8 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Tuple
 from openai import AsyncOpenAI
 import logging
 from app.config import settings
+from app.services.media_manager import search_images
 
 logging.basicConfig(level=logging.INFO)
 
@@ -36,27 +37,33 @@ class AsyncOpenAIService:
             return None
 
 
-openai_service = AsyncOpenAIService()
+class ContentGenerator:
+    def __init__(self, openai_service: AsyncOpenAIService):
+        self.openai_service = openai_service
 
+    async def generate_content(self, promo_text: str) -> Tuple[str, str]:
+        """Generate caption and find relevant image for promotional content."""
+        try:
+            messages = [
+                {
+                    "role": "system",
+                    "content": "You are a marketing expert. Create engaging social media captions.",
+                },
+                {"role": "user", "content": f"Create an engaging caption for: {promo_text}"},
+            ]
+            caption = await self.openai_service.create_chat_completion(messages=messages)
+            if not caption:
+                caption = f"✨ {promo_text}\n\n#trending #viral #marketing"
 
-if __name__ == "__main__":
-    import asyncio
+            # Find relevant image
+            image_results = search_images(promo_text, limit=1)
+            image_url = image_results[0] if image_results else "https://example.com/mock-image.jpg"
 
-    messages = [
-        {
-            "role": "system",
-            "content": "You are a helpful assistant. When asked for a list, always respond in JSON format. JSON schema: {names: [string]}",
-        },
-        {
-            "role": "user",
-            "content": "Five student names.",
-        },
-    ]
+            return caption, image_url
 
-    response = asyncio.run(
-        openai_service.create_chat_completion(
-            messages=messages, response_format={"type": "json_object"}
-        )
-    )
-
-    logging.info(response)
+        except Exception as e:
+            logging.error(f"Error generating content: {e}")
+            return (
+                f"✨ {promo_text}\n\n#trending #viral #marketing",
+                "https://example.com/mock-image.jpg",
+            )
