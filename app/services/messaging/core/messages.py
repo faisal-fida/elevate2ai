@@ -31,27 +31,6 @@ class MessageHandler(WhatsAppBase):
             logging.error(f"Failed to send message to {recipient_id}: {response.text}")
         return response.json()
 
-    async def send_reaction(
-        self, emoji: str, message_id: str, recipient_id: str, recipient_type: str = "individual"
-    ) -> Dict[str, Any]:
-        """Send a reaction to a message"""
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": recipient_type,
-            "to": recipient_id,
-            "type": "reaction",
-            "reaction": {"message_id": message_id, "emoji": emoji},
-        }
-        logging.info(f"Sending reaction to message {message_id}")
-        async with httpx.AsyncClient() as client:
-            response = await client.post(self.url, headers=self.headers, json=data)
-
-        if response.status_code == 200:
-            logging.info(f"Reaction sent to message {message_id}")
-        else:
-            logging.error(f"Failed to send reaction: {response.text}")
-        return response.json()
-
     async def reply_to_message(
         self, message_id: str, recipient_id: str, message: str, preview_url: bool = True
     ) -> Dict[str, Any]:

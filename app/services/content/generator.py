@@ -1,79 +1,54 @@
-from typing import Tuple
+from typing import Optional
 import logging
-from typing import Any, Dict, List, Optional, Union
 from openai import AsyncOpenAI
-from app.config import settings
-from .media_service import search_images
+from .base import ContentProvider, ImageProvider, ContentResult
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-
-class AsyncOpenAIService:
-    def __init__(self):
-        api_key = settings.OPENAI_API_KEY
-        if not api_key:
-            raise ValueError("OpenAI API key not provided.")
-
-        self._client = AsyncOpenAI(
-            api_key=api_key,
-            timeout=settings.OPENAI_TIMEOUT,
-            max_retries=settings.OPENAI_MAX_RETRIES,
-        )
-
-    async def create_chat_completion(
+class OpenAIContentGenerator(ContentProvider):
+    def __init__(
         self,
-        messages: List[Dict[str, Union[str, Any]]],
-        model: str = settings.OPENAI_MODEL,
-        **kwargs: Any,
-    ) -> Optional[str]:
+        api_key: str,
+        image_provider: ImageProvider,
+        model: str = "gpt-4-turbo-preview",
+        timeout: float = 30.0,
+        max_retries: int = 2
+    ):
+        self.image_provider = image_provider
+        self.client = AsyncOpenAI(
+            api_key=api_key,
+            timeout=timeout,
+            max_retries=max_retries
+        )
+        self.model = model
+
+    async def generate_caption(self, text: str) -> str:
         try:
-            completion = await self._client.chat.completions.create(
-                model=model,
-                messages=messages,
-                **kwargs,
+            completion = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a marketing expert. Create engaging social media captions."
+                    },
+                    {"role": "user", "content": f"Create an engaging caption for: {text}"}
+                ]
             )
-            return completion.choices[0].message.content if completion.choices else None
+            return completion.choices[0].message.content or text
         except Exception as e:
-            logging.error(f"Error creating chat completion: {e}")
+            logger.error(f"Failed to generate caption: {e}")
+            return f"✨ {text}\n\n#trending #marketing"
+
+    async def get_image(self, query: str) -> Optional[str]:
+        try:
+            results = await self.image_provider.search_images(query, limit=1)
+            return results[0] if results else None
+        except Exception as e:
+            logger.error(f"Failed to get image: {e}")
             return None
 
-
-class ContentGenerator:
-    def __init__(self, openai_service: AsyncOpenAIService):
-        self.openai_service = openai_service
-        self.logger = logging.getLogger(__name__)
-
-    async def generate_content(self, promo_text: str) -> Tuple[str, str]:
-        """Generate caption and find relevant image for promotional content."""
-        try:
-            # Generate caption using OpenAI
-            messages = [
-                {
-                    "role": "system",
-                    "content": "You are a marketing expert. Create engaging social media captions.",
-                },
-                {"role": "user", "content": f"Create an engaging caption for: {promo_text}"},
-            ]
-            caption = await self.openai_service.create_chat_completion(messages=messages)
-
-            if not caption:
-                self.logger.warning("No caption generated, using default.")
-                caption = f"✨ {promo_text}\n\n#trending #viral #marketing"
-
-            # Find relevant image
-            image_results = search_images(promo_text, limit=1)
-            image_url = image_results[0] if image_results else "https://example.com/mock-image.jpg"
-
-            if not image_url:
-                self.logger.warning("No image found, using mock image.")
-                image_url = "https://example.com/mock-image.jpg"
-
-            self.logger.info("Image and caption generated successfully.")
-            return caption, image_url
-
-        except Exception as e:
-            self.logger.error(f"Error generating content: {e}")
-            return (
-                f"✨ {promo_text}\n\n#trending #viral #marketing",
-                "https://example.com/mock-image.jpg",
-            )
+    async def generate_content(self, text: str) -> ContentResult:
+        """Generate both caption and image for the given text"""
+        caption = await self.generate_caption(text)
+        image_url = await self.get_image(text)
+        return ContentResult(caption=caption, image_url=image_url)

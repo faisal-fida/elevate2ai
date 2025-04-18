@@ -1,7 +1,7 @@
 from typing import Dict, Any
 from fastapi import APIRouter, Response, Query
 from app.config import settings
-from app.services.messaging.whatsapp_client import WhatsApp
+from app.services.messaging.core.whatsapp import WhatsAppClient
 from app.services.content.workflow_manager import ContentWorkflow
 import logging
 
@@ -9,14 +9,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-whatsapp_service = WhatsApp(
+whatsapp_client = WhatsAppClient(
     token=settings.WHATSAPP_TOKEN, phone_number_id=settings.WHATSAPP_PHONE_NUMBER_ID
 )
-workflow = ContentWorkflow(whatsapp_service)
+workflow = ContentWorkflow(whatsapp_client)
 
 
-async def get_whatsapp_service() -> WhatsApp:
-    return whatsapp_service
+async def get_whatsapp_service() -> WhatsAppClient:
+    return whatsapp_client
 
 
 @router.get("/webhook")
@@ -35,9 +35,8 @@ async def verify_webhook(
 @router.post("/webhook")
 async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
     """Handle incoming WhatsApp messages"""
-    message = whatsapp_service.get_message(data)
+    message = whatsapp_client.extract_message(data)
     if message:
-        client_id = data["entry"][0]["changes"][0]["value"]["messages"][0]["from"]
-        await workflow.process_message(client_id, message)
+        await workflow.process_message(message)
         return {"status": "ok"}
     return {"status": "no message found"}

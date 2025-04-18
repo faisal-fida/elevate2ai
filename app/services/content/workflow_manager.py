@@ -1,131 +1,113 @@
-from __future__ import annotations
+from enum import Enum
 from typing import Dict
-import asyncio
 import logging
-from app.services.messaging.whatsapp_client import WhatsApp
-from app.services.messaging.message_handler import MessageHandler
-from app.services.messaging.state_manager import StateManager, WorkflowState
-from .generator import ContentGenerator
+from app.services.messaging.core.base import MessagingClient, Message
+from app.services.messaging.core.whatsapp import WhatsAppMessage
+from .base import ContentProvider, ContentResult
+
+logger = logging.getLogger(__name__)
 
 
-class ContentWorkflow:
-    def __init__(self, whatsapp: WhatsApp):
-        self.message_handler = MessageHandler(whatsapp)
-        self.state_manager = StateManager()
-        self.content_generator = ContentGenerator()
-        self.message_queue: Dict[str, asyncio.Queue] = {}
+class WorkflowState(str, Enum):
+    INIT = "init"
+    GENERATING = "generating"
+    REVIEWING = "reviewing"
 
-    def _get_message_queue(self, client_id: str) -> asyncio.Queue:
-        """Get or create message queue for client."""
-        if client_id not in self.message_queue:
-            self.message_queue[client_id] = asyncio.Queue()
-        return self.message_queue[client_id]
 
-    async def _handle_init(self, client_id: str, message: str) -> None:
-        """Handle initial 'Hi' message."""
-        if message.lower() == "hi":
-            await self.message_handler.send_message(
-                phone_number=client_id,
-                text="👋 Welcome! Please share your promotional text and I'll help you create engaging content.",
+class ContentWorkflowManager:
+    def __init__(self, messaging_client: MessagingClient, content_provider: ContentProvider):
+        self.messaging_client = messaging_client
+        self.content_provider = content_provider
+        self.client_states: Dict[str, str] = {}
+        self.pending_content: Dict[str, ContentResult] = {}
+
+    async def handle_message(self, message: Message) -> None:
+        """Handle incoming messages based on current state"""
+        client_id = message.recipient_id
+        state = self.client_states.get(client_id, WorkflowState.INIT)
+
+        handlers = {
+            WorkflowState.INIT: self._handle_initial_message,
+            WorkflowState.GENERATING: self._handle_text_input,
+            WorkflowState.REVIEWING: self._handle_review,
+        }
+
+        await handlers[state](message)
+
+    async def _handle_initial_message(self, message: Message) -> None:
+        """Handle initial interaction"""
+        if message.content.lower() == "hi":
+            await self._send_message(
+                message.recipient_id,
+                "👋 Welcome! Please share your promotional text and I'll help create engaging content.",
             )
-            self.state_manager.set_state(client_id, WorkflowState.WAITING_FOR_PROMO)
+            self.client_states[message.recipient_id] = WorkflowState.GENERATING
         else:
-            await self.message_handler.send_message(
-                phone_number=client_id, text="👋 Please start by saying 'Hi'!"
+            await self._send_message(message.recipient_id, "👋 Please start by saying 'Hi'!")
+
+    async def _handle_text_input(self, message: Message) -> None:
+        """Handle promotional text input"""
+        client_id = message.recipient_id
+
+        await self._send_message(client_id, "🎨 Generating content...")
+
+        try:
+            content = await self.content_provider.generate_content(message.content)
+            self.pending_content[client_id] = content
+
+            # Send the generated content
+            if content.image_url:
+                await self.messaging_client.send_message(
+                    WhatsAppMessage(
+                        content=content.image_url,
+                        recipient_id=client_id,
+                        message_type="image",
+                        caption=content.caption,
+                    )
+                )
+            else:
+                await self._send_message(client_id, content.caption)
+
+            await self._send_message(
+                client_id,
+                "Please reply with 'approve' to use this content or 'reject' to generate new content.",
             )
+            self.client_states[client_id] = WorkflowState.REVIEWING
 
-    async def _handle_promo_text(self, client_id: str, message: str) -> None:
-        """Handle promotional text input and generate content."""
-        await self.message_handler.send_message(
-            phone_number=client_id, text="🎨 Generating engaging content for your promotion..."
-        )
+        except Exception as e:
+            logger.error(f"Content generation failed: {e}")
+            await self._send_message(client_id, "Sorry, I encountered an error. Please try again.")
+            self.client_states[client_id] = WorkflowState.GENERATING
 
-        caption, image_url = await self.content_generator.generate_content(message)
+    async def _handle_review(self, message: Message) -> None:
+        """Handle content approval/rejection"""
+        client_id = message.recipient_id
+        response = message.content.lower()
 
-        self.state_manager.set_context(
-            client_id,
-            {
-                "caption": caption,
-                "image_url": image_url,
-                "original_text": message,
-            },
-        )
+        if response == "approve":
+            content = self.pending_content.get(client_id)
+            if content:
+                await self._send_message(
+                    client_id, "✅ Great! Your content has been approved and is ready to use."
+                )
+            self._reset_client(client_id)
 
-        await self.message_handler.send_media(
-            phone_number=client_id, media_url=image_url, caption=caption
-        )
-
-        await self.message_handler.send_message(
-            phone_number=client_id,
-            text="Please reply with 'approve' to use this content or 'reject' to generate a new variation.",
-        )
-
-        self.state_manager.set_state(client_id, WorkflowState.WAITING_FOR_APPROVAL)
-
-    async def _handle_approval(self, client_id: str, message: str) -> None:
-        """Handle client's approval or rejection of generated content."""
-        message = message.lower()
-        context = self.state_manager.get_context(client_id)
-
-        if message == "approve":
-            await self.message_handler.send_message(
-                phone_number=client_id,
-                text="✅ Great! Your content has been finalized:\n\n"
-                + f"Caption: {context.get('caption')}\n"
-                + f"Image URL: {context.get('image_url')}",
+        elif response == "reject":
+            await self._send_message(
+                client_id, "Please share your promotional text again for a new variation."
             )
-            self.state_manager.reset_client(client_id)
-
-        elif message == "reject":
-            await self.message_handler.send_message(
-                phone_number=client_id, text="🔄 Let me generate a new variation for you..."
-            )
-
-            caption, image_url = await self.content_generator.generate_content(
-                context.get("original_text", "")
-            )
-
-            self.state_manager.update_context(
-                client_id, {"caption": caption, "image_url": image_url}
-            )
-
-            await self.message_handler.send_media(
-                phone_number=client_id, media_url=image_url, caption=caption
-            )
-
-            await self.message_handler.send_message(
-                phone_number=client_id,
-                text="Please reply with 'approve' to use this content or 'reject' to generate a new variation.",
-            )
+            self.client_states[client_id] = WorkflowState.GENERATING
 
         else:
-            await self.message_handler.send_message(
-                phone_number=client_id, text="Please reply with either 'approve' or 'reject'."
-            )
+            await self._send_message(client_id, "Please reply with either 'approve' or 'reject'.")
 
-    async def _message_processor(self, client_id: str) -> None:
-        """Process messages in queue for a client."""
-        queue = self._get_message_queue(client_id)
-        while True:
-            message = await queue.get()
-            try:
-                current_state = self.state_manager.get_state(client_id)
-                handler = {
-                    WorkflowState.INIT: self._handle_init,
-                    WorkflowState.WAITING_FOR_PROMO: self._handle_promo_text,
-                    WorkflowState.WAITING_FOR_APPROVAL: self._handle_approval,
-                }.get(current_state)
+    async def _send_message(self, recipient_id: str, content: str) -> None:
+        """Helper to send a text message"""
+        await self.messaging_client.send_message(
+            WhatsAppMessage(content=content, recipient_id=recipient_id)
+        )
 
-                if handler:
-                    await handler(client_id, message)
-            except Exception as e:
-                logging.error(f"Error processing message for {client_id}: {e}")
-            finally:
-                queue.task_done()
-
-    async def process_message(self, client_id: str, message: str) -> None:
-        """Queue message for processing."""
-        queue = self._get_message_queue(client_id)
-        if queue.empty() and client_id not in self.state_manager.client_states:
-            asyncio.create_task(self._message_processor(client_id))
-        await queue.put(message)
+    def _reset_client(self, client_id: str) -> None:
+        """Reset client state and content"""
+        self.client_states.pop(client_id, None)
+        self.pending_content.pop(client_id, None)
