@@ -1,7 +1,6 @@
 from typing import Dict, Any
 from fastapi import APIRouter, Response, Query
 from app.config import settings
-from app.services.messaging.whatsapp_client import WhatsApp
 from app.services.content.workflow_manager import ContentWorkflow
 import logging
 
@@ -9,14 +8,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-whatsapp_service = WhatsApp(
-    token=settings.WHATSAPP_TOKEN, phone_number_id=settings.WHATSAPP_PHONE_NUMBER_ID
-)
-workflow = ContentWorkflow(whatsapp_service)
-
-
-async def get_whatsapp_service() -> WhatsApp:
-    return whatsapp_service
+workflow = ContentWorkflow()
 
 
 @router.get("/webhook")

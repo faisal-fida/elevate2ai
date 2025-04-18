@@ -1,10 +1,12 @@
 from enum import Enum
 from typing import Dict
 
+
 class WorkflowState(Enum):
     INIT = "init"
     WAITING_FOR_PROMO = "waiting_for_promo"
     WAITING_FOR_APPROVAL = "waiting_for_approval"
+
 
 class StateManager:
     def __init__(self):
