@@ -32,17 +32,14 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
         return {"status": "error", "message": "Invalid object"}
 
     try:
-        # Extract entry data
         entry = data.get("entry", [{}])[0]
         changes = entry.get("changes", [{}])[0]
         value = changes.get("value", {})
 
-        # Validate message structure
         if not value or value.get("messaging_product") != "whatsapp":
             logger.error("Invalid message format")
             return {"status": "error", "message": "Invalid message format"}
 
-        # Extract message details
         messages = value.get("messages", [])
         if not messages:
             return {"status": "success", "message": "No messages to process"}
@@ -52,7 +49,6 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
             logger.info(f"Ignoring non-text message of type: {message.get('type')}")
             return {"status": "success", "message": "Non-text message ignored"}
 
-        # Extract sender and message text
         sender_id = message.get("from")
         message_text = message.get("text", {}).get("body", "")
 
@@ -60,7 +56,6 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
             logger.error("Missing sender ID or message text")
             return {"status": "error", "message": "Missing required message data"}
 
-        # Process message through workflow
         await workflow.process_message(sender_id, message_text)
         logger.info(f"Successfully processed message from {sender_id}")
 

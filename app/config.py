@@ -8,9 +8,7 @@ from pathlib import Path
 class Settings(BaseSettings):
     ENVIRONMENT: Literal["development", "production"] = "development"
     PROJECT_NAME: str = "FastAPI Supabase Template"
-    PROJECT_DESCRIPTION: str = (
-        "Production-ready FastAPI template with Supabase integration"
-    )
+    PROJECT_DESCRIPTION: str = "Production-ready FastAPI template with Supabase integration"
     LOG_LEVEL: str = "INFO"
 
     TEST_AUTH_TOKEN: str = "test_token"
@@ -26,6 +24,7 @@ class Settings(BaseSettings):
     PEXELS_API_KEY: str = Field(..., env="PEXELS_API_KEY")
     UNSPLASH_API_KEY: str = Field(..., env="UNSPLASH_API_KEY")
     PIXABAY_API_KEY: str = Field(..., env="PIXABAY_API_KEY")
+    SWITCHBOARD_API_KEY: str = Field(..., env="SWITCHBOARD_API_KEY")
 
     # OpenAI Configuration
     OPENAI_API_KEY: str = Field(..., env="OPENAI_API_KEY")

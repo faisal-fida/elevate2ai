@@ -3,7 +3,7 @@ import logging
 from typing import Any, Dict, List, Optional, Union
 from openai import AsyncOpenAI
 from app.config import settings
-from .media_service import search_images
+from .media_service import search_images_async
 
 logging.basicConfig(level=logging.INFO)
 
@@ -75,7 +75,7 @@ class ContentGenerator:
                 promo_text_search = promo_text
 
             self.logger.info(f"Generated search query: {promo_text_search}")
-            image_results = search_images(promo_text_search, limit=4)
+            image_results = await search_images_async(promo_text_search, limit=4)
 
             if not image_results or len(image_results) < 4:
                 self.logger.warning("Not enough images found, using default.")
