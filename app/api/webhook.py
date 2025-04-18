@@ -2,7 +2,7 @@ from typing import Dict, Any
 from fastapi import APIRouter, Response, Query
 from app.config import settings
 from app.services.messaging.whatsapp_client import WhatsApp
-from app.services.messaging.workflow import ContentWorkflow
+from app.services.content.workflow_manager import ContentWorkflow
 import logging
 
 logger = logging.getLogger(__name__)
