@@ -3,14 +3,13 @@ from typing import Dict
 import asyncio
 import logging
 from app.services.messaging.whatsapp_client import WhatsApp
-from app.services.messaging.message_handler import MessageHandler
 from app.services.messaging.state_manager import StateManager, WorkflowState
 from .generator import ContentGenerator
 
 
 class ContentWorkflow:
     def __init__(self, whatsapp: WhatsApp):
-        self.message_handler = MessageHandler(whatsapp)
+        self.whatsapp = whatsapp
         self.state_manager = StateManager()
         self.content_generator = ContentGenerator()
         self.message_queue: Dict[str, asyncio.Queue] = {}
@@ -24,19 +23,19 @@ class ContentWorkflow:
     async def _handle_init(self, client_id: str, message: str) -> None:
         """Handle initial 'Hi' message."""
         if message.lower() == "hi":
-            await self.message_handler.send_message(
+            await self.whatsapp.send_message(
                 phone_number=client_id,
                 text="👋 Welcome! Please share your promotional text and I'll help you create engaging content.",
             )
             self.state_manager.set_state(client_id, WorkflowState.WAITING_FOR_PROMO)
         else:
-            await self.message_handler.send_message(
+            await self.whatsapp.send_message(
                 phone_number=client_id, text="👋 Please start by saying 'Hi'!"
             )
 
     async def _handle_promo_text(self, client_id: str, message: str) -> None:
         """Handle promotional text input and generate content."""
-        await self.message_handler.send_message(
+        await self.whatsapp.send_message(
             phone_number=client_id, text="🎨 Generating engaging content for your promotion..."
         )
 
