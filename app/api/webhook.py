@@ -34,10 +34,21 @@ async def verify_webhook(
 
 @router.post("/webhook")
 async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
-    """Handle incoming WhatsApp messages"""
-    message = whatsapp_service.get_message(data)
-    if message:
-        client_id = data["entry"][0]["changes"][0]["value"]["messages"][0]["from"]
-        await workflow.process_message(client_id, message)
-        return {"status": "ok"}
+    """Handle incoming WhatsApp messages with enhanced parsing and threaded replies"""
+    parsed_message = whatsapp_service.parse_incoming_message(data)
+    if parsed_message:
+        client_id = parsed_message["client_id"]
+        message_text = parsed_message["message_text"]
+        message_id = parsed_message["message_id"]
+        
+        # Process the message through workflow
+        await workflow.process_message(client_id, message_text)
+        
+        # Send a threaded reply acknowledging receipt
+        await whatsapp_service.reply_to_message(
+            message_id=message_id,
+            recipient_id=client_id,
+            message="✅ Message received and being processed."
+        )
+        return {"status": "ok", "message_id": message_id}
     return {"status": "no message found"}
