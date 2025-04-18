@@ -1,7 +1,7 @@
 from __future__ import annotations
 import logging
 import httpx
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union, List
 
 
 class WhatsApp:
@@ -51,56 +51,44 @@ class WhatsApp:
             logging.error(f"Failed to send message to {phone_number}: {response.text}")
         return response.json()
 
-    async def send_image(
+    async def send_media(
         self,
-        image: str,
+        media_items: Union[Dict[str, Any], List[Dict[str, Any]]],
         phone_number: str,
-        caption: Optional[str] = None,
         recipient_type: str = "individual",
-    ) -> Dict[str, Any]:
-        media = {
-            "messaging_product": "whatsapp",
-            "recipient_type": recipient_type,
-            "to": phone_number,
-            "type": "image",
-            "image": {"link": image},
-        }
-        if caption:
-            media["image"]["caption"] = caption
+    ) -> List[Dict[str, Any]]:
+        """Send one or more media items (images/videos) to a WhatsApp user"""
+        if not isinstance(media_items, list):
+            media_items = [media_items]
 
-        logging.info(f"Sending image to {phone_number}")
+        responses = []
         async with httpx.AsyncClient() as client:
-            response = await client.post(self.url, headers=self.headers, json=media)
+            for item in media_items:
+                media_type = item.get("type", "").lower()
+                if media_type not in ["image", "video"]:
+                    logging.error(f"Unsupported media type: {media_type}")
+                    continue
 
-        if response.status_code == 200:
-            logging.info(f"Image sent to {phone_number}")
-        else:
-            logging.error(f"Failed to send image: {response.text}")
-        return response.json()
+                payload = {
+                    "messaging_product": "whatsapp",
+                    "recipient_type": recipient_type,
+                    "to": phone_number,
+                    "type": media_type,
+                    media_type: {"link": item.get("url", "")},
+                }
 
-    async def send_video(
-        self,
-        video: str,
-        phone_number: str,
-        caption: Optional[str] = None,
-        recipient_type: str = "individual",
-    ) -> Dict[str, Any]:
-        media = {
-            "messaging_product": "whatsapp",
-            "recipient_type": recipient_type,
-            "to": phone_number,
-            "type": "video",
-            "video": {"link": video},
-        }
-        if caption:
-            media["video"]["caption"] = caption
+                if caption := item.get("caption"):
+                    payload[media_type]["caption"] = caption
 
-        logging.info(f"Sending video to {phone_number}")
-        async with httpx.AsyncClient() as client:
-            response = await client.post(self.url, headers=self.headers, json=media)
+                logging.info(f"Sending {media_type} to {phone_number}")
+                try:
+                    response = await client.post(self.url, headers=self.headers, json=payload)
+                    response.raise_for_status()
+                    responses.append(response.json())
+                    logging.info(f"{media_type.title()} sent to {phone_number}")
+                except Exception as e:
+                    error_msg = f"Failed to send {media_type}: {str(e)}"
+                    logging.error(error_msg)
+                    responses.append({"error": error_msg})
 
-        if response.status_code == 200:
-            logging.info(f"Video sent to {phone_number}")
-        else:
-            logging.error(f"Failed to send video: {response.text}")
-        return response.json()
+        return responses

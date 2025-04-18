@@ -27,6 +27,45 @@ async def verify_webhook(
 @router.post("/webhook")
 async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
     """Handle incoming WhatsApp messages"""
-    logger.info(f"Incoming message: {data}")
-    await workflow.process_message(data)
-    return {"status": "success"}
+    if data.get("object") != "whatsapp_business_account":
+        logger.error("Invalid object in webhook data")
+        return {"status": "error", "message": "Invalid object"}
+
+    try:
+        # Extract entry data
+        entry = data.get("entry", [{}])[0]
+        changes = entry.get("changes", [{}])[0]
+        value = changes.get("value", {})
+
+        # Validate message structure
+        if not value or value.get("messaging_product") != "whatsapp":
+            logger.error("Invalid message format")
+            return {"status": "error", "message": "Invalid message format"}
+
+        # Extract message details
+        messages = value.get("messages", [])
+        if not messages:
+            return {"status": "success", "message": "No messages to process"}
+
+        message = messages[0]
+        if message.get("type") != "text":
+            logger.info(f"Ignoring non-text message of type: {message.get('type')}")
+            return {"status": "success", "message": "Non-text message ignored"}
+
+        # Extract sender and message text
+        sender_id = message.get("from")
+        message_text = message.get("text", {}).get("body", "")
+
+        if not sender_id or not message_text:
+            logger.error("Missing sender ID or message text")
+            return {"status": "error", "message": "Missing required message data"}
+
+        # Process message through workflow
+        await workflow.process_message(sender_id, message_text)
+        logger.info(f"Successfully processed message from {sender_id}")
+
+        return {"status": "success", "message": "Message processed"}
+
+    except Exception as e:
+        logger.error(f"Error processing webhook data: {e}")
+        return {"status": "error", "message": str(e)}
