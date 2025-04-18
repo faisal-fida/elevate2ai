@@ -1,17 +1,10 @@
-from typing import Protocol, Dict
+from typing import Dict
 from datetime import datetime
 import asyncio
 import logging
-from abc import ABC, abstractmethod
 
-class MessageSender(Protocol):
-    async def send_message(self, phone_number: str, text: str) -> None:
-        ...
 
-    async def send_media(self, phone_number: str, media_url: str, caption: str) -> None:
-        ...
-
-class BaseMessageHandler(ABC):
+class BaseMessageHandler:
     def __init__(self):
         self.last_message_time: Dict[str, datetime] = {}
         self.rate_limit_delay = 1.0  # Seconds between messages
@@ -23,7 +16,7 @@ class BaseMessageHandler(ABC):
             time_since_last = (now - self.last_message_time[phone_number]).total_seconds()
             if time_since_last < self.rate_limit_delay:
                 await asyncio.sleep(self.rate_limit_delay - time_since_last)
-        
+
     async def _update_rate_limit(self, phone_number: str) -> None:
         """Update the last message time for rate limiting."""
         self.last_message_time[phone_number] = datetime.now()
@@ -38,10 +31,6 @@ class BaseMessageHandler(ABC):
             logging.error(f"Error in {operation} for {phone_number}: {e}")
             raise
 
-    @abstractmethod
-    async def _execute_operation(self, operation: str, phone_number: str, **kwargs) -> None:
-        """Execute the specific message operation."""
-        pass
 
 class MessageHandler(BaseMessageHandler):
     def __init__(self, sender: MessageSender):
@@ -50,24 +39,21 @@ class MessageHandler(BaseMessageHandler):
 
     async def _execute_operation(self, operation: str, phone_number: str, **kwargs) -> None:
         """Execute specific message operations."""
-        if operation == 'send_message':
-            await self.sender.send_message(phone_number=phone_number, text=kwargs.get('text', ''))
-        elif operation == 'send_media':
+        if operation == "send_message":
+            await self.sender.send_message(phone_number=phone_number, text=kwargs.get("text", ""))
+        elif operation == "send_media":
             await self.sender.send_media(
                 phone_number=phone_number,
-                media_url=kwargs.get('media_url', ''),
-                caption=kwargs.get('caption', '')
+                media_url=kwargs.get("media_url", ""),
+                caption=kwargs.get("caption", ""),
             )
 
     async def send_message(self, phone_number: str, text: str) -> None:
         """Send a text message with rate limiting."""
-        await self._handle_message_operation(phone_number, 'send_message', text=text)
+        await self._handle_message_operation(phone_number, "send_message", text=text)
 
     async def send_media(self, phone_number: str, media_url: str, caption: str) -> None:
         """Send a media message with rate limiting."""
         await self._handle_message_operation(
-            phone_number,
-            'send_media',
-            media_url=media_url,
-            caption=caption
+            phone_number, "send_media", media_url=media_url, caption=caption
         )

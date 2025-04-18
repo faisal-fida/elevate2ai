@@ -39,8 +39,8 @@ class AsyncOpenAIService:
 
 
 class ContentGenerator:
-    def __init__(self, openai_service: AsyncOpenAIService):
-        self.openai_service = openai_service
+    def __init__(self):
+        self.openai_service = AsyncOpenAIService()
         self.logger = logging.getLogger(__name__)
 
     async def generate_content(self, promo_text: str) -> Tuple[str, str]:

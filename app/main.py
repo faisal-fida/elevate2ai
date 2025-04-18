@@ -3,8 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.params import Query
 from app.config import settings
-from app.api.auth import router as auth_router
-from app.api.payment import router as payment_router
 from app.api.webhook import verify_webhook, handle_message
 
 app = FastAPI(title=settings.PROJECT_NAME, description=settings.PROJECT_DESCRIPTION)
@@ -36,7 +34,3 @@ async def webhook_verification(
 async def webhook_handler(request: Request):
     data = await request.json()
     return await handle_message(data)
-
-
-app.include_router(auth_router, tags=["auth"])
-app.include_router(payment_router, prefix="/payment", tags=["payment"])
