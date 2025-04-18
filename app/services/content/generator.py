@@ -44,7 +44,7 @@ class ContentGenerator:
         self.logger = logging.getLogger(__name__)
 
     async def generate_content(self, promo_text: str) -> Tuple[str, list[str]]:
-        """Generate caption and find relevant image for promotional content."""
+        """Generate caption and find relevant images for promotional content."""
         try:
             # Generate caption using OpenAI
             caption = await self.openai_service.create_chat_completion(
@@ -60,7 +60,7 @@ class ContentGenerator:
                 self.logger.warning("No caption generated, using default.")
                 caption = f"✨ {promo_text}\n\n#trending #viral #marketing"
 
-            # Find relevant image
+            # Find relevant images (4 for gallery)
             promo_text_search = await self.openai_service.create_chat_completion(
                 messages=[
                     {
@@ -75,14 +75,14 @@ class ContentGenerator:
                 promo_text_search = promo_text
 
             self.logger.info(f"Generated search query: {promo_text_search}")
-            image_results = search_images(promo_text_search, limit=1)
+            image_results = search_images(promo_text_search, limit=4)
 
-            if not image_results:
-                self.logger.warning("No images found, using default.")
-                image_results = ["https://example.com/mock-image.jpg"]
+            if not image_results or len(image_results) < 4:
+                self.logger.warning("Not enough images found, using default.")
+                image_results = ["https://example.com/mock-image.jpg"] * 4
                 return caption, image_results
-            return caption, image_results
+            return caption, image_results[:4]
 
         except Exception as e:
             self.logger.error(f"Error generating content: {e}")
-            return "Error generating content", ["https://example.com/mock-image.jpg"]
+            return "Error generating content", ["https://example.com/mock-image.jpg"] * 4
