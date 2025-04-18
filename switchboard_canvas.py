@@ -2,6 +2,23 @@ import requests
 from app.config import settings
 
 
+def generate_template_name(platform: str, client_phone: str, post_type: str) -> str:
+    """
+    Generates a template name using the convention:
+    SocialMediaPlatform_ClientPhoneNumber_PostType
+
+    Args:
+        platform (str): Social media platform (e.g., 'instagram').
+        client_phone (str): Client phone number (digits only).
+        post_type (str): Post type (should be predefined).
+
+    Returns:
+        str: The generated template name.
+    """
+    # NOTE: All post types should be defined in advance.
+    return f"{platform.lower()}_{client_phone}_{post_type.lower()}"
+
+
 def create_switchboard_image(api_key: str, template: str, sizes: list, elements: dict) -> dict:
     """
     Calls the Switchboard Canvas API to generate images.
@@ -32,9 +49,13 @@ def create_switchboard_image(api_key: str, template: str, sizes: list, elements:
 
 if __name__ == "__main__":
     api_key = settings.SWITCHBOARD_API_KEY
-    template = "golden-gate"
+    # Example usage for Instagram event post for client +351 915 950 259
+    platform = "instagram"
+    client_phone = "351915950259"
+    post_type = "events"
+    template = generate_template_name(platform, client_phone, post_type)
     sizes = [
-        {"width": 1920, "height": 1080},
+        {"width": 1080, "height": 1080},  # Instagram size
     ]
     elements = {
         "backdrop": {"url": ""},
