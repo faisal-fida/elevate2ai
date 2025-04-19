@@ -5,8 +5,9 @@ import logging
 from dataclasses import dataclass
 from app.services.messaging.whatsapp import WhatsApp
 from app.services.messaging.state_manager import StateManager, WorkflowState
-from .generator import ContentGenerator
 from app.config import settings
+from .generator import ContentGenerator
+from .switchboard_canvas import create_image
 
 MESSAGES = {
     "welcome": "👋 Welcome! Please share your promotional text and I'll help you create engaging content.",
@@ -102,6 +103,18 @@ class MessageHandler:
                     phone_number=client_id,
                 )
                 await self._send_message(client_id, MESSAGES["finalized"])
+
+                # Generate the final image using Switchboard Canvas
+                create_image(
+                    client_id=client_id,
+                    selected_url=selected_url,
+                    caption=context.caption,
+                    platform="instagram",
+                    post_type="post",
+                )
+                # Reset the state and context
+                self.state_manager.set_context(client_id, {})
+                self.state_manager.set_state(client_id, WorkflowState.INIT)
                 self.state_manager.reset_client(client_id)
             else:
                 await self._send_message(
