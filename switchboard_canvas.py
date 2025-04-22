@@ -5,7 +5,7 @@ import requests
 from app.config import settings
 from app.constants import SOCIAL_MEDIA_PLATFORMS
 
-BASE_URL = "https://api.canvas.switchboard.ai/"
+BASE_URL = "https://api.canvas.switchboard.ai"
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -19,6 +19,18 @@ class SwitchboardCanvasClient:
             "X-API-Key": self.api_key,
             "Content-Type": "application/json",
         }
+
+    def get_template_elements(self, template: str) -> List[Dict[str, Any]]:
+        """Fetches the elements defined in a given template."""
+        url = f"{self.base_url}/template/{template}/elements"
+        try:
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("fields", [])
+        except Exception as e:
+            logger.error("Error fetching template elements: %s", e)
+            raise e
 
     def generate_image(
         self, template: str, sizes: List[Dict[str, Any]], elements: Dict[str, Any]
@@ -34,19 +46,12 @@ class SwitchboardCanvasClient:
                     "elements": elements,
                 },
             )
+            logger.debug("Request Response: %s", response.text)
             response.raise_for_status()
             return response.json()
-        except requests.HTTPError as http_err:
-            logger.error("HTTP error occurred: %s", http_err)
-            try:
-                error_json = response.json()
-                logger.debug("Response JSON: %s", error_json)
-            except ValueError:
-                pass
-            raise
-        except Exception as err:
-            logger.exception(f"Unexpected error occurred while creating image: {err}")
-            raise
+        except Exception as e:
+            logger.error("Error generating image: %s", e)
+            raise e
 
 
 def create_image(
@@ -55,27 +60,20 @@ def create_image(
     canvas_client = SwitchboardCanvasClient(api_key=settings.SWITCHBOARD_API_KEY)
     template = f"{platform.lower()}_{client_id}_{post_type.lower()}"
     sizes = SOCIAL_MEDIA_PLATFORMS[platform]["sizes"]
-    # elements = {
-    #     "backdrop": {"url": selected_url},
-    #     "quote": {"text": caption},
-    #     "person": {"text": ""},
-    #     "quote-symbol": {"url": ""},
-    # }
 
-    elements = {
-        "rectangle": {"fillColor": "#FF0000"},
-        "headline_text": {"text": caption},
-        "logo": {"url": selected_url},
-        "main_image": {"url": selected_url},
-    }
+    # Fetch template elements
+    fields = canvas_client.get_template_elements(template)
+    elements = {}
+    for field in fields:
+        if field["type"] == "text":
+            elements[field["name"]] = {"text": caption}
+        elif field["type"] == "image":
+            elements[field["name"]] = {"url": selected_url}
+        elif field["type"] == "rectangle":
+            elements[field["name"]] = {"fillColor": "#FF0000"}
 
-    try:
-        response = canvas_client.generate_image(template=template, sizes=sizes, elements=elements)
-        logger.info("Image created successfully: %s", response)
-        return response
-    except Exception as e:
-        logger.error("Error creating image: %s", e)
-        raise e
+    response = canvas_client.generate_image(template=template, sizes=sizes, elements=elements)
+    return response
 
 
 if __name__ == "__main__":
