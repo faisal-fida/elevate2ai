@@ -1,14 +1,14 @@
 from typing import Dict, Any
 from fastapi import APIRouter, Response, Query
 from app.config import settings
-from app.services.content.workflow_manager import ContentWorkflow
-import logging
-
-logger = logging.getLogger(__name__)
+from app.services.workflow.manager import WorkflowManager
+from app.services.common.logging import setup_logger
 
 router = APIRouter()
 
-workflow = ContentWorkflow()
+# Initialize the workflow manager
+workflow_manager = WorkflowManager()
+logger = setup_logger(__name__)
 
 
 @router.get("/webhook")
@@ -60,7 +60,7 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
             return {"status": "error", "message": "Missing required message data"}
 
         logger.info(f"Received message from {sender_id}: {message_text}")
-        await workflow.process_message(sender_id, message_text)
+        await workflow_manager.process_message(sender_id, message_text)
         logger.info(f"Successfully processed message from {sender_id}")
         return {"status": "success", "message": "Message processed"}
 
