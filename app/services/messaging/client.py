@@ -141,43 +141,96 @@ class WhatsApp(MessagingClient):
         phone_number: str,
         recipient_type: str = "individual",
     ) -> List[Dict[str, Any]]:
-        """Send interactive buttons to a WhatsApp user, splitting into multiple messages if > 3 buttons"""
-        responses = []
+        """
+        Send interactive buttons to a WhatsApp user.
+        If there are more than 3 buttons, automatically use interactive list instead.
+        """
+        # Add debug logging
+        self.logger.info(f"send_interactive_buttons called with {len(buttons)} buttons")
 
-        # Split buttons into chunks of 3
-        for i in range(0, len(buttons), 3):
-            button_chunk = buttons[i : i + 3]
-            formatted_buttons = [
-                {"type": "reply", "reply": {"id": button["id"], "title": button["title"]}}
-                for button in button_chunk
+        # Check if buttons list is empty
+        if not buttons:
+            self.logger.warning("Empty buttons list provided, sending regular message instead")
+            await self.send_message(
+                message=f"{header_text}\n\n{body_text}",
+                phone_number=phone_number,
+                recipient_type=recipient_type,
+            )
+            return [
+                {
+                    "status": "success",
+                    "message": "Sent as regular message due to empty buttons list",
+                }
             ]
 
-            data = {
-                "messaging_product": "whatsapp",
-                "recipient_type": recipient_type,
-                "to": phone_number,
-                "type": "interactive",
-                "interactive": {
-                    "type": "button",
-                    "header": {"type": "text", "text": header_text},
-                    "body": {"text": body_text},
-                    "action": {"buttons": formatted_buttons},
-                },
-            }
+        # If more than 3 buttons, use interactive list instead
+        if len(buttons) > 3:
+            self.logger.info(f"Converting {len(buttons)} buttons to interactive list")
 
-            self.logger.info(f"Sending interactive buttons (chunk {i // 3 + 1}) to {phone_number}")
-            async with httpx.AsyncClient() as client:
-                response = await client.post(self.url, headers=self.headers, json=data)
+            # Convert buttons to a section for the interactive list
+            # Format rows according to WhatsApp API requirements
+            rows = []
+            for button in buttons:
+                rows.append(
+                    {
+                        "id": button["id"],
+                        "title": button["title"],
+                        "description": "",  # Optional description
+                    }
+                )
+            section = {"title": header_text, "rows": rows}
 
-                if response.status_code == 200:
-                    self.logger.info(
-                        f"Interactive buttons chunk {i // 3 + 1} sent to {phone_number}"
-                    )
-                    responses.append(response.json())
-                else:
-                    error_msg = f"Failed to send interactive buttons chunk {i // 3 + 1} to {phone_number}: {response.text}"
-                    self.logger.error(error_msg)
-                    responses.append({"error": error_msg})
+            # Use the first button title as the button text or a default
+            button_text = "Select an option"
+
+            # Send as interactive list
+            self.logger.info(f"Sending interactive list with {len(buttons)} options")
+            try:
+                response = await self.send_interactive_list(
+                    header_text=header_text,
+                    body_text=body_text,
+                    button_text=button_text,
+                    sections=[section],
+                    phone_number=phone_number,
+                    recipient_type=recipient_type,
+                )
+                self.logger.info("Interactive list sent successfully")
+                return [response]  # Return as a list to maintain the same return type
+            except Exception as e:
+                self.logger.error(f"Error sending interactive list: {str(e)}")
+                raise
+
+        # Otherwise, use buttons as before
+        responses = []
+        formatted_buttons = [
+            {"type": "reply", "reply": {"id": button["id"], "title": button["title"]}}
+            for button in buttons
+        ]
+
+        data = {
+            "messaging_product": "whatsapp",
+            "recipient_type": recipient_type,
+            "to": phone_number,
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "header": {"type": "text", "text": header_text},
+                "body": {"text": body_text},
+                "action": {"buttons": formatted_buttons},
+            },
+        }
+
+        self.logger.info(f"Sending interactive buttons to {phone_number}")
+        async with httpx.AsyncClient() as client:
+            response = await client.post(self.url, headers=self.headers, json=data)
+
+            if response.status_code == 200:
+                self.logger.info(f"Interactive buttons sent to {phone_number}")
+                responses.append(response.json())
+            else:
+                error_msg = f"Failed to send interactive buttons to {phone_number}: {response.text}"
+                self.logger.error(error_msg)
+                responses.append({"error": error_msg})
 
         return responses
 
@@ -191,6 +244,12 @@ class WhatsApp(MessagingClient):
         recipient_type: str = "individual",
     ) -> Dict[str, Any]:
         """Send an interactive list to a WhatsApp user"""
+        # Log detailed information about the sections
+        self.logger.info(f"send_interactive_list called with {len(sections)} sections")
+        for i, section in enumerate(sections):
+            self.logger.info(f"Section {i + 1} title: {section.get('title')}")
+            self.logger.info(f"Section {i + 1} has {len(section.get('rows', []))} rows")
+
         data = {
             "messaging_product": "whatsapp",
             "recipient_type": recipient_type,
@@ -205,11 +264,21 @@ class WhatsApp(MessagingClient):
         }
 
         self.logger.info(f"Sending interactive list to {phone_number}")
-        async with httpx.AsyncClient() as client:
-            response = await client.post(self.url, headers=self.headers, json=data)
+        self.logger.info(f"Interactive list payload: {data}")
 
-        if response.status_code == 200:
-            self.logger.info(f"Interactive list sent to {phone_number}")
-        else:
-            self.logger.error(f"Failed to send interactive list to {phone_number}: {response.text}")
-        return response.json()
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(self.url, headers=self.headers, json=data)
+
+            if response.status_code == 200:
+                self.logger.info(f"Interactive list sent to {phone_number}")
+                return response.json()
+            else:
+                self.logger.error(
+                    f"Failed to send interactive list to {phone_number}: {response.text}"
+                )
+                self.logger.error(f"Response status code: {response.status_code}")
+                return {"error": response.text}
+        except Exception as e:
+            self.logger.error(f"Exception sending interactive list: {str(e)}")
+            raise

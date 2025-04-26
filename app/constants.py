@@ -9,11 +9,9 @@ MESSAGES = {
     "invalid_choice": "Please reply with either 'y' or 'n'.",
     "finalized": "✅ Great! Your content has been finalized.",
     "error": "❌ An error occurred. Please try again.",
-    # New messages for social media posting workflow
-    "platform_selection": "👋 Now, let's create a post for your promotion. Please select the platforms where you want to post:",
-    "platform_selection_done": "✅ You've selected: {platforms}. Select 'Done' when you're finished.",
+    "platform_selection": "👋 Now, let's create a post for your promotion. Please select a platform or 'All Platforms' to post to all:",
     "content_type_selection": "📝 What type of content would you like to post?",
-    "same_content_prompt": "🤔 Would you like to post the same content on all selected platforms?",
+    "same_content_prompt": "🤔 Would you like to use the same content type for all platforms?",
     "platform_specific_content": "📱 Let's select content type for {platform}:",
     "caption_prompt": "✍️ Please enter a caption for your post:",
     "schedule_prompt": "🗓️ When would you like to post this content?",

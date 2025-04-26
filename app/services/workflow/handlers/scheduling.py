@@ -45,10 +45,13 @@ class SchedulingHandler(BaseHandler):
             {"id": "now", "title": "Post Now"},
         ]
 
-        # Send interactive buttons
+        # Send message first to provide context
+        await self.send_message(client_id, MESSAGES["schedule_prompt"])
+
+        # Send interactive buttons (will automatically use list if > 3 buttons)
         await self.client.send_interactive_buttons(
             header_text="Schedule Selection",
-            body_text=MESSAGES["schedule_prompt"],
+            body_text="When would you like to schedule your post?",
             buttons=buttons,
             phone_number=client_id,
         )

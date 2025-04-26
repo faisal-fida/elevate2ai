@@ -32,23 +32,46 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
         return {"status": "error", "message": "Invalid object"}
 
     try:
-        entry = data.get("entry", [{}])[0]
-        changes = entry.get("changes", [{}])[0]
-        value = changes.get("value", {})
+        # Safely extract entry and changes
+        entries = data.get("entry", [])
+        if not entries:
+            logger.error("No entries in webhook data")
+            return {"status": "error", "message": "No entries in webhook data"}
+
+        entry = entries[0]
+        changes = entry.get("changes", [])
+        if not changes:
+            logger.error("No changes in webhook entry")
+            return {"status": "error", "message": "No changes in webhook entry"}
+
+        value = changes[0].get("value", {})
 
         if not value or value.get("messaging_product") != "whatsapp":
-            logger.error("Invalid message format")
+            logger.error(f"Invalid message format: {value}")
             return {"status": "error", "message": "Invalid message format"}
 
         messages = value.get("messages", [])
         if not messages:
+            logger.info("No messages to process in webhook data")
             return {"status": "success", "message": "No messages to process"}
 
         message = messages[0]
         sender_id = message.get("from")
 
         if message.get("type") == "interactive":
-            message_text = message.get("interactive", {}).get("button_reply", {}).get("id", "")
+            interactive = message.get("interactive", {})
+            logger.info(f"Received interactive message: {interactive}")
+
+            # Handle both button replies and list replies
+            if "button_reply" in interactive:
+                message_text = interactive.get("button_reply", {}).get("id", "")
+                logger.info(f"Extracted button reply ID: {message_text}")
+            elif "list_reply" in interactive:
+                message_text = interactive.get("list_reply", {}).get("id", "")
+                logger.info(f"Extracted list reply ID: {message_text}")
+            else:
+                logger.error(f"Unknown interactive message format: {interactive}")
+                return {"status": "error", "message": "Unknown interactive message format"}
         else:
             if message.get("type") != "text":
                 logger.info(f"Ignoring non-text message of type: {message.get('type')}")
