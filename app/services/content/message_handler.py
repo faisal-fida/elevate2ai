@@ -7,6 +7,7 @@ from app.services.messaging.state_manager import StateManager, WorkflowState
 from .generator import ContentGenerator
 from .switchboard_canvas import create_image
 from app.constants import MESSAGES, SOCIAL_MEDIA_PLATFORMS
+import logging
 
 
 @dataclass
@@ -24,6 +25,7 @@ class WorkflowContext:
     platform_specific_captions: Dict[str, str] = None
     current_platform_index: int = 0
     post_status: Dict[str, bool] = None
+    common_content_types: List[str] = None
 
     def __post_init__(self):
         if self.image_urls is None:
@@ -45,6 +47,7 @@ class MessageHandler:
         self.whatsapp = whatsapp
         self.state_manager = state_manager
         self.content_generator = content_generator
+        self.logging = logging.getLogger(__name__)
 
     async def _send_message(self, client_id: str, message: str) -> None:
         await self.whatsapp.send_message(phone_number=client_id, message=message)
@@ -65,6 +68,7 @@ class MessageHandler:
                 {"type": "image", "url": url, "caption": f"Reply with {idx} to select this image."}
             )
 
+        self.logging.info(f"Sending media items to {client_id}")
         await self.whatsapp.send_media(media_items=media_items, phone_number=client_id)
         await asyncio.sleep(1)
         await self._send_message(
@@ -112,8 +116,6 @@ class MessageHandler:
                 )
         else:
             await self._send_message(client_id, "Please reply with 1, 2, 3, 4, or 'regenerate'.")
-
-    # New handlers for social media posting workflow
 
     async def _handle_platform_selection(self, client_id: str) -> None:
         """Handle platform selection step."""

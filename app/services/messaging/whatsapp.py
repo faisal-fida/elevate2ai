@@ -41,14 +41,13 @@ class WhatsApp:
             "type": "text",
             "text": {"preview_url": preview_url, "body": message},
         }
-        logging.info(f"Sending message to {phone_number}")
         async with httpx.AsyncClient() as client:
             response = await client.post(self.url, headers=self.headers, json=data)
 
-        if response.status_code == 200:
-            logging.info(f"Message sent to {phone_number}")
-        else:
+        if response.status_code != 200:
             logging.error(f"Failed to send message to {phone_number}: {response.text}")
+
+        logging.info(f"Sent message to {phone_number}.")
         return response.json()
 
     async def send_media(
@@ -80,12 +79,10 @@ class WhatsApp:
                 if caption := item.get("caption"):
                     payload[media_type]["caption"] = caption
 
-                logging.info(f"Sending {media_type} to {phone_number}")
                 try:
                     response = await client.post(self.url, headers=self.headers, json=payload)
                     response.raise_for_status()
                     responses.append(response.json())
-                    logging.info(f"{media_type.title()} sent to {phone_number}")
                 except Exception as e:
                     error_msg = f"Failed to send {media_type}: {str(e)}"
                     logging.error(error_msg)
