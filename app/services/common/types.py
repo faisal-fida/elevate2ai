@@ -10,10 +10,8 @@ WorkflowStateType = Literal[
     "init",
     "waiting_for_promo",
     "waiting_for_approval",
-    "platform_selection",
     "content_type_selection",
-    "same_content_confirmation",
-    "platform_specific_content",
+    "platform_selection_for_content",
     "caption_input",
     "schedule_selection",
     "confirmation",
@@ -51,16 +49,18 @@ class WorkflowContext:
     caption: str = ""
     image_urls: List[str] = None
     original_text: str = ""
+    selected_image: str = ""  # The selected image URL
 
     # Fields for social media posting workflow
-    selected_platforms: List[str] = None
-    content_types: Dict[str, str] = None
-    same_content_across_platforms: bool = False
+    selected_content_type: str = ""  # The content type selected by the user
+    selected_platforms: List[str] = None  # Platforms selected for the content type
+    content_types: Dict[str, str] = None  # For backward compatibility
     schedule_time: str = ""
     platform_specific_captions: Dict[str, str] = None
     current_platform_index: int = 0
     post_status: Dict[str, bool] = None
-    common_content_types: List[str] = None
+    supported_platforms: List[str] = None  # Platforms that support the selected content type
+    platform_images: Dict[str, str] = None  # Platform-specific edited images
 
     def __post_init__(self):
         """Initialize default values for None fields"""
@@ -74,5 +74,7 @@ class WorkflowContext:
             self.platform_specific_captions = {}
         if self.post_status is None:
             self.post_status = {}
-        if self.common_content_types is None:
-            self.common_content_types = []
+        if self.supported_platforms is None:
+            self.supported_platforms = []
+        if self.platform_images is None:
+            self.platform_images = {}

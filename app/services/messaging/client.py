@@ -145,9 +145,6 @@ class WhatsApp(MessagingClient):
         Send interactive buttons to a WhatsApp user.
         If there are more than 3 buttons, automatically use interactive list instead.
         """
-        # Add debug logging
-        self.logger.info(f"send_interactive_buttons called with {len(buttons)} buttons")
-
         # Check if buttons list is empty
         if not buttons:
             self.logger.warning("Empty buttons list provided, sending regular message instead")
@@ -165,10 +162,6 @@ class WhatsApp(MessagingClient):
 
         # If more than 3 buttons, use interactive list instead
         if len(buttons) > 3:
-            self.logger.info(f"Converting {len(buttons)} buttons to interactive list")
-
-            # Convert buttons to a section for the interactive list
-            # Format rows according to WhatsApp API requirements
             rows = []
             for button in buttons:
                 rows.append(
@@ -179,12 +172,8 @@ class WhatsApp(MessagingClient):
                     }
                 )
             section = {"title": header_text, "rows": rows}
-
-            # Use the first button title as the button text or a default
             button_text = "Select an option"
 
-            # Send as interactive list
-            self.logger.info(f"Sending interactive list with {len(buttons)} options")
             try:
                 response = await self.send_interactive_list(
                     header_text=header_text,
@@ -194,8 +183,7 @@ class WhatsApp(MessagingClient):
                     phone_number=phone_number,
                     recipient_type=recipient_type,
                 )
-                self.logger.info("Interactive list sent successfully")
-                return [response]  # Return as a list to maintain the same return type
+                return [response]
             except Exception as e:
                 self.logger.error(f"Error sending interactive list: {str(e)}")
                 raise
@@ -244,12 +232,6 @@ class WhatsApp(MessagingClient):
         recipient_type: str = "individual",
     ) -> Dict[str, Any]:
         """Send an interactive list to a WhatsApp user"""
-        # Log detailed information about the sections
-        self.logger.info(f"send_interactive_list called with {len(sections)} sections")
-        for i, section in enumerate(sections):
-            self.logger.info(f"Section {i + 1} title: {section.get('title')}")
-            self.logger.info(f"Section {i + 1} has {len(section.get('rows', []))} rows")
-
         data = {
             "messaging_product": "whatsapp",
             "recipient_type": recipient_type,
@@ -262,9 +244,6 @@ class WhatsApp(MessagingClient):
                 "action": {"button": button_text, "sections": sections},
             },
         }
-
-        self.logger.info(f"Sending interactive list to {phone_number}")
-        self.logger.info(f"Interactive list payload: {data}")
 
         try:
             async with httpx.AsyncClient() as client:

@@ -9,13 +9,12 @@ MESSAGES = {
     "invalid_choice": "Please reply with either 'y' or 'n'.",
     "finalized": "✅ Great! Your content has been finalized.",
     "error": "❌ An error occurred. Please try again.",
-    "platform_selection": "👋 Now, let's create a post for your promotion. Please select a platform or 'All Platforms' to post to all:",
-    "content_type_selection": "📝 What type of content would you like to post?",
-    "same_content_prompt": "🤔 Would you like to use the same content type for all platforms?",
-    "platform_specific_content": "📱 Let's select content type for {platform}:",
-    "caption_prompt": "✍️ Please enter a caption for your post:",
+    "content_type_selection": "👋 Now, let's create a post for your promotion. What type of content would you like to post?",
+    "platform_selection_for_content": "📱 Great! For {content_type} content, you can post to these platforms. Please select one or 'All' to post to all supported platforms:",
+    "caption_prompt": "✍️ Please enter a prompt to generate the social media post:",
+    "editing_confirmation": "🎨 I will edit the image and post it to the selected platforms. Should I proceed?",
     "schedule_prompt": "🗓️ When would you like to post this content?",
-    "confirmation_summary": "📋 Here's a summary of your post:\n\nPlatforms: {platforms}\nContent Types: {content_types}\nSchedule: {schedule}\nCaption: {caption}\n\nIs this correct?",
+    "confirmation_summary": "📋 Here's a summary of your post:\n\nContent Type: {content_type}\nPlatforms: {platforms}\nSchedule: {schedule}\nCaption: {caption}",
     "post_success": "✅ Your content has been posted successfully to {platforms}!",
     "post_partial_success": "⚠️ Your content was posted to some platforms: {success_platforms}\nFailed platforms: {failed_platforms}",
     "post_failure": "❌ Failed to post your content. Please try again.",
@@ -35,6 +34,17 @@ SOCIAL_MEDIA_PLATFORMS = {
     },
     "tiktok": {"sizes": [{"width": 1080, "height": 1920}], "content_types": ["generic", "promo"]},
 }
+
+
+# Helper function to get platforms that support a specific content type
+def get_platforms_for_content_type(content_type: str) -> list:
+    """Return a list of platforms that support the given content type"""
+    supported_platforms = []
+    for platform, details in SOCIAL_MEDIA_PLATFORMS.items():
+        if content_type in details["content_types"]:
+            supported_platforms.append(platform)
+    return supported_platforms
+
 
 # Example OpenAI prompts (expand as needed)
 OPENAI_PROMPTS = {

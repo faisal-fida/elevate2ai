@@ -52,7 +52,6 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
 
         messages = value.get("messages", [])
         if not messages:
-            logger.info("No messages to process in webhook data")
             return {"status": "success", "message": "No messages to process"}
 
         message = messages[0]

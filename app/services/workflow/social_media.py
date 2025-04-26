@@ -2,8 +2,10 @@ from app.services.messaging.client import MessagingClient
 from app.services.messaging.state_manager import StateManager, WorkflowState
 from app.services.content.generator import ContentGenerator
 from app.services.workflow.base import BaseWorkflow
-from app.services.workflow.handlers.platform_selection import PlatformSelectionHandler
-from app.services.workflow.handlers.content_type import ContentTypeHandler
+from app.services.workflow.handlers.content_type_selection import ContentTypeSelectionHandler
+from app.services.workflow.handlers.platform_selection_for_content import (
+    PlatformSelectionForContentHandler,
+)
 from app.services.workflow.handlers.caption import CaptionHandler
 from app.services.workflow.handlers.scheduling import SchedulingHandler
 from app.services.workflow.handlers.execution import ExecutionHandler
@@ -18,8 +20,8 @@ class SocialMediaWorkflow(BaseWorkflow):
     ):
         super().__init__(client, state_manager)
         self.content_generator = content_generator
-        self.platform_handler = PlatformSelectionHandler(client, state_manager)
-        self.content_type_handler = ContentTypeHandler(client, state_manager)
+        self.content_type_selection_handler = ContentTypeSelectionHandler(client, state_manager)
+        self.platform_selection_handler = PlatformSelectionForContentHandler(client, state_manager)
         self.caption_handler = CaptionHandler(client, state_manager, content_generator)
         self.scheduling_handler = SchedulingHandler(client, state_manager)
         self.execution_handler = ExecutionHandler(client, state_manager)
@@ -33,10 +35,8 @@ class SocialMediaWorkflow(BaseWorkflow):
                 current_state = self.state_manager.get_state(client_id)
                 handler = {
                     WorkflowState.INIT: self._handle_init,
-                    WorkflowState.PLATFORM_SELECTION: self.platform_handler.handle,
-                    WorkflowState.CONTENT_TYPE_SELECTION: self.content_type_handler.handle,
-                    WorkflowState.SAME_CONTENT_CONFIRMATION: self.content_type_handler.handle_confirmation,
-                    WorkflowState.PLATFORM_SPECIFIC_CONTENT: self.content_type_handler.handle_platform_specific,
+                    WorkflowState.CONTENT_TYPE_SELECTION: self.content_type_selection_handler.handle,
+                    WorkflowState.PLATFORM_SELECTION_FOR_CONTENT: self.platform_selection_handler.handle,
                     WorkflowState.CAPTION_INPUT: self.caption_handler.handle,
                     WorkflowState.SCHEDULE_SELECTION: self.scheduling_handler.handle,
                     WorkflowState.CONFIRMATION: self.execution_handler.handle_confirmation,
@@ -65,10 +65,8 @@ class SocialMediaWorkflow(BaseWorkflow):
     async def _handle_init(self, client_id: str, message: str) -> None:
         """Handle the initial state"""
         if message in ["hi", "hello", "hey", "hii"]:
-            await self.send_message(
-                client_id, "Let's create a social media post. First, let's select the platforms."
-            )
-            self.state_manager.set_state(client_id, WorkflowState.PLATFORM_SELECTION)
-            await self.platform_handler.send_platform_options(client_id)
+            # Start with content type selection
+            self.state_manager.set_state(client_id, WorkflowState.CONTENT_TYPE_SELECTION)
+            await self.content_type_selection_handler.send_content_type_options(client_id)
         else:
             await self.send_message(client_id, "To create a social media post, please type 'Hi'.")

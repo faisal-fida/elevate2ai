@@ -39,6 +39,11 @@ class CaptionHandler(BaseHandler):
         # Update context with generated content
         context.caption = caption
         context.image_urls = image_urls
+
+        # Set the first image as the default selected image
+        if image_urls:
+            context.selected_image = image_urls[0]
+
         self.state_manager.update_context(client_id, vars(context))
 
         # Send the generated content for approval

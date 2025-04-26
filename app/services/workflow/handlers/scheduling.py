@@ -1,3 +1,4 @@
+import asyncio
 from app.services.messaging.state_manager import WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
 from app.constants import MESSAGES
@@ -58,30 +59,35 @@ class SchedulingHandler(BaseHandler):
 
     async def send_confirmation_summary(self, client_id: str, context: WorkflowContext) -> None:
         """Send confirmation summary to the client"""
-        # Format platforms and content types
-        platforms = ", ".join(context.selected_platforms)
-        content_types = ", ".join([f"{p}: {t}" for p, t in context.content_types.items()])
+        # Format platforms and content type
+        platforms = ", ".join(platform.capitalize() for platform in context.selected_platforms)
 
         # Create summary message
         summary = MESSAGES["confirmation_summary"].format(
+            content_type=context.selected_content_type.capitalize(),
             platforms=platforms,
-            content_types=content_types,
             schedule=context.schedule_time,
             caption=context.caption,
         )
 
         # Send the selected image with the summary
-        await self.client.send_media(
-            media_items=[{"type": "image", "url": context.selected_image, "caption": summary}],
-            phone_number=client_id,
-        )
+        if context.selected_image:
+            await self.client.send_media(
+                media_items=[{"type": "image", "url": context.selected_image, "caption": summary}],
+                phone_number=client_id,
+            )
+        else:
+            # If no image is selected, just send the summary as a message
+            await self.send_message(client_id, summary)
+
+        await asyncio.sleep(1)
 
         # Send confirmation buttons
-        buttons = [{"id": "yes", "title": "Yes, Post It"}, {"id": "no", "title": "No, Start Over"}]
+        buttons = [{"id": "yes", "title": "Yes, Continue"}, {"id": "no", "title": "No, Start Over"}]
 
         await self.client.send_interactive_buttons(
             header_text="Confirmation",
-            body_text="Is this correct?",
+            body_text=MESSAGES["editing_confirmation"],
             buttons=buttons,
             phone_number=client_id,
         )

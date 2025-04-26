@@ -7,7 +7,7 @@ from app.services.common.logging import setup_logger
 
 class SwitchboardCanvas:
     """Service for interacting with Switchboard Canvas API"""
-    
+
     def __init__(self, base_url: str = "https://api.canvas.switchboard.ai"):
         self.api_key = settings.SWITCHBOARD_API_KEY
         self.base_url = base_url.rstrip("/")
@@ -44,16 +44,22 @@ class SwitchboardCanvas:
             elements = self.get_template_elements(template_name)
             self.logger.debug(f"Elements: {elements}")
 
+            payload_elements = {}
+
             for element in elements:
-                if element["name"] == "caption":
-                    element["value"] = caption
-                elif element["name"] == "image":
-                    element["value"] = selected_url
+                if element["name"] == "main_image":
+                    payload_elements[element["name"]] = {"url": selected_url}
+                elif element["name"] == "headline_text":
+                    payload_elements[element["name"]] = {"text": caption}
+                elif element["name"] == "logo":
+                    payload_elements[element["name"]] = {
+                        "url": "https://onlinepngtools.com/images/examples-onlinepngtools/google-logo-transparent.png"
+                    }
 
             payload = {
                 "template": template_name,
                 "sizes": SOCIAL_MEDIA_PLATFORMS[platform]["sizes"],
-                "elements": elements,
+                "elements": payload_elements,
             }
             return payload
         except Exception as e:
@@ -82,6 +88,7 @@ def create_image(
 ) -> Dict[str, Any]:
     """Helper function to create an image using Switchboard Canvas"""
     canvas = SwitchboardCanvas()
+    client_id = "351915950259"  # TODO: Delete this line
     payload = canvas.get_payload(client_id, selected_url, caption, platform, post_type)
     response = canvas.generate_image(payload)
     return response
