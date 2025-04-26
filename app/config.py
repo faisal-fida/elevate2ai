@@ -1,8 +1,6 @@
 from typing import List, Literal
 from pydantic import AnyHttpUrl, Field
 from pydantic_settings import BaseSettings
-import logging
-from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -44,26 +42,11 @@ class Settings(BaseSettings):
     SECURE_COOKIES: bool = Field(default=False, env="SECURE_COOKIES")
     TRUSTED_HOSTS: List[str] = Field(default=["*"], env="TRUSTED_HOSTS")
 
-    LOG_DIR: Path = Path("logs")
-    LOG_FORMAT: str = "%(levelname)s:     %(message)s"
-
     class Config:
         case_sensitive = True
         env_file = ".env"
         env_file_encoding = "utf-8"
         env_file_required = True
 
-    def configure_logging(self) -> None:
-        self.LOG_DIR.mkdir(exist_ok=True)
-        logging.basicConfig(
-            level=self.LOG_LEVEL,
-            format=self.LOG_FORMAT,
-            handlers=[
-                logging.StreamHandler(),
-                logging.FileHandler(self.LOG_DIR / "app.log"),
-            ],
-        )
-
 
 settings = Settings()
-settings.configure_logging()

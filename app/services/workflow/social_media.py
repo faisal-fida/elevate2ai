@@ -40,7 +40,7 @@ class SocialMediaWorkflow(BaseWorkflow):
                     WorkflowState.CAPTION_INPUT: self.caption_handler.handle,
                     WorkflowState.SCHEDULE_SELECTION: self.scheduling_handler.handle,
                     WorkflowState.CONFIRMATION: self.execution_handler.handle_confirmation,
-                    WorkflowState.POST_EXECUTION: self.execution_handler.handle_execution,
+                    WorkflowState.POST_EXECUTION: self.execution_handler.handle,
                 }.get(current_state)
 
                 if handler:
@@ -64,13 +64,11 @@ class SocialMediaWorkflow(BaseWorkflow):
 
     async def _handle_init(self, client_id: str, message: str) -> None:
         """Handle the initial state"""
-        if message == "create post":
+        if message in ["hi", "hello", "hey", "hii"]:
             await self.send_message(
                 client_id, "Let's create a social media post. First, let's select the platforms."
             )
             self.state_manager.set_state(client_id, WorkflowState.PLATFORM_SELECTION)
             await self.platform_handler.send_platform_options(client_id)
         else:
-            await self.send_message(
-                client_id, "To create a social media post, please type 'Create Post'."
-            )
+            await self.send_message(client_id, "To create a social media post, please type 'Hi'.")

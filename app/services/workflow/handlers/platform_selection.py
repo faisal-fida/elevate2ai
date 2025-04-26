@@ -19,7 +19,6 @@ class PlatformSelectionHandler(BaseHandler):
 
             # Move to content type selection
             self.state_manager.set_state(client_id, WorkflowState.CONTENT_TYPE_SELECTION)
-            await self.send_message(client_id, MESSAGES["content_type_selection"])
 
             # Find common content types across selected platforms
             common_types = self._get_common_content_types(context.selected_platforms)
@@ -58,7 +57,6 @@ class PlatformSelectionHandler(BaseHandler):
         for platform in SOCIAL_MEDIA_PLATFORMS:
             buttons.append({"id": platform, "title": platform.capitalize()})
 
-        # Add done button
         buttons.append({"id": "done", "title": "Done"})
 
         # Send interactive buttons
@@ -76,6 +74,7 @@ class PlatformSelectionHandler(BaseHandler):
         for content_type in content_types:
             buttons.append({"id": content_type, "title": content_type.capitalize()})
 
+        await self.send_message(client_id, MESSAGES["content_type_selection"])
         # Send interactive buttons
         await self.client.send_interactive_buttons(
             header_text="Content Type Selection",

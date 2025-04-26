@@ -7,26 +7,39 @@ from app.services.common.types import MediaItem, ButtonItem, SectionItem
 
 class MessagingClient:
     """Base class for messaging clients"""
-    
+
     def __init__(self):
         self.logger = setup_logger(__name__)
-    
+
     async def send_message(self, message: str, recipient_id: str, **kwargs) -> Dict[str, Any]:
         """Send a text message to a recipient"""
         raise NotImplementedError("Subclasses must implement this method")
-    
-    async def send_media(self, media_items: Union[MediaItem, List[MediaItem]], recipient_id: str, **kwargs) -> Dict[str, Any]:
+
+    async def send_media(
+        self, media_items: Union[MediaItem, List[MediaItem]], recipient_id: str, **kwargs
+    ) -> Dict[str, Any]:
         """Send media to a recipient"""
         raise NotImplementedError("Subclasses must implement this method")
-    
+
     async def send_interactive_buttons(
-        self, header_text: str, body_text: str, buttons: List[ButtonItem], recipient_id: str, **kwargs
+        self,
+        header_text: str,
+        body_text: str,
+        buttons: List[ButtonItem],
+        recipient_id: str,
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send interactive buttons to a recipient"""
         raise NotImplementedError("Subclasses must implement this method")
-    
+
     async def send_interactive_list(
-        self, header_text: str, body_text: str, button_text: str, sections: List[SectionItem], recipient_id: str, **kwargs
+        self,
+        header_text: str,
+        body_text: str,
+        button_text: str,
+        sections: List[SectionItem],
+        recipient_id: str,
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send an interactive list to a recipient"""
         raise NotImplementedError("Subclasses must implement this method")
@@ -34,7 +47,7 @@ class MessagingClient:
 
 class WhatsApp(MessagingClient):
     """WhatsApp messaging client implementation"""
-    
+
     def __init__(self, token: Optional[str] = None, phone_number_id: Optional[str] = None):
         super().__init__()
         self.token = token
@@ -127,35 +140,46 @@ class WhatsApp(MessagingClient):
         buttons: List[ButtonItem],
         phone_number: str,
         recipient_type: str = "individual",
-    ) -> Dict[str, Any]:
-        """Send interactive buttons to a WhatsApp user"""
-        # Format buttons for WhatsApp API
-        formatted_buttons = []
-        for button in buttons:
-            formatted_buttons.append({"type": "reply", "reply": {"id": button["id"], "title": button["title"]}})
+    ) -> List[Dict[str, Any]]:
+        """Send interactive buttons to a WhatsApp user, splitting into multiple messages if > 3 buttons"""
+        responses = []
 
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": recipient_type,
-            "to": phone_number,
-            "type": "interactive",
-            "interactive": {
-                "type": "button",
-                "header": {"type": "text", "text": header_text},
-                "body": {"text": body_text},
-                "action": {"buttons": formatted_buttons},
-            },
-        }
+        # Split buttons into chunks of 3
+        for i in range(0, len(buttons), 3):
+            button_chunk = buttons[i : i + 3]
+            formatted_buttons = [
+                {"type": "reply", "reply": {"id": button["id"], "title": button["title"]}}
+                for button in button_chunk
+            ]
 
-        self.logger.info(f"Sending interactive buttons to {phone_number}")
-        async with httpx.AsyncClient() as client:
-            response = await client.post(self.url, headers=self.headers, json=data)
+            data = {
+                "messaging_product": "whatsapp",
+                "recipient_type": recipient_type,
+                "to": phone_number,
+                "type": "interactive",
+                "interactive": {
+                    "type": "button",
+                    "header": {"type": "text", "text": header_text},
+                    "body": {"text": body_text},
+                    "action": {"buttons": formatted_buttons},
+                },
+            }
 
-        if response.status_code == 200:
-            self.logger.info(f"Interactive buttons sent to {phone_number}")
-        else:
-            self.logger.error(f"Failed to send interactive buttons to {phone_number}: {response.text}")
-        return response.json()
+            self.logger.info(f"Sending interactive buttons (chunk {i // 3 + 1}) to {phone_number}")
+            async with httpx.AsyncClient() as client:
+                response = await client.post(self.url, headers=self.headers, json=data)
+
+                if response.status_code == 200:
+                    self.logger.info(
+                        f"Interactive buttons chunk {i // 3 + 1} sent to {phone_number}"
+                    )
+                    responses.append(response.json())
+                else:
+                    error_msg = f"Failed to send interactive buttons chunk {i // 3 + 1} to {phone_number}: {response.text}"
+                    self.logger.error(error_msg)
+                    responses.append({"error": error_msg})
+
+        return responses
 
     async def send_interactive_list(
         self,

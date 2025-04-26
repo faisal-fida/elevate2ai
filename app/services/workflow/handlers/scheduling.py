@@ -39,10 +39,10 @@ class SchedulingHandler(BaseHandler):
         """Send scheduling options to the client"""
         # Create buttons for scheduling options
         buttons = [
-            {"id": "now", "title": "Post Now"},
             {"id": "later", "title": "Later Today"},
             {"id": "tomorrow", "title": "Tomorrow"},
             {"id": "next week", "title": "Next Week"},
+            {"id": "now", "title": "Post Now"},
         ]
 
         # Send interactive buttons

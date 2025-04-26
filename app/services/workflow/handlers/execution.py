@@ -27,7 +27,7 @@ class ExecutionHandler(BaseHandler):
             context = WorkflowContext(**self.state_manager.get_context(client_id))
             await self.send_confirmation_summary(client_id, context)
 
-    async def handle_execution(self, client_id: str, message: str) -> None:
+    async def handle(self, client_id: str, message: str) -> None:
         """Handle post execution"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 

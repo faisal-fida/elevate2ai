@@ -1,4 +1,4 @@
-from typing import Dict, List, Any, Optional, Union, TypedDict, Literal
+from typing import Dict, List, Optional, TypedDict, Literal
 from dataclasses import dataclass
 
 
@@ -23,6 +23,7 @@ WorkflowStateType = Literal[
 
 class MediaItem(TypedDict):
     """Type definition for a media item"""
+
     type: MediaType
     url: str
     caption: Optional[str]
@@ -30,12 +31,14 @@ class MediaItem(TypedDict):
 
 class ButtonItem(TypedDict):
     """Type definition for a button item"""
+
     id: str
     title: str
 
 
 class SectionItem(TypedDict):
     """Type definition for a section item"""
+
     title: str
     rows: List[ButtonItem]
 
@@ -43,6 +46,7 @@ class SectionItem(TypedDict):
 @dataclass
 class WorkflowContext:
     """Data class for workflow context"""
+
     # Original fields
     caption: str = ""
     image_urls: List[str] = None
@@ -57,7 +61,7 @@ class WorkflowContext:
     current_platform_index: int = 0
     post_status: Dict[str, bool] = None
     common_content_types: List[str] = None
-    
+
     def __post_init__(self):
         """Initialize default values for None fields"""
         if self.image_urls is None:
