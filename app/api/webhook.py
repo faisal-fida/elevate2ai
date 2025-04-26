@@ -45,17 +45,21 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
             return {"status": "success", "message": "No messages to process"}
 
         message = messages[0]
-        if message.get("type") != "text":
-            logger.info(f"Ignoring non-text message of type: {message.get('type')}")
-            return {"status": "success", "message": "Non-text message ignored"}
-
         sender_id = message.get("from")
-        message_text = message.get("text", {}).get("body", "")
+
+        if message.get("type") == "interactive":
+            message_text = message.get("interactive", {}).get("button_reply", {}).get("title", "")
+        else:
+            if message.get("type") != "text":
+                logger.info(f"Ignoring non-text message of type: {message.get('type')}")
+                return {"status": "success", "message": "Non-text message ignored"}
+            message_text = message.get("text", {}).get("body", "")
 
         if not sender_id or not message_text:
             logger.error("Missing sender ID or message text")
             return {"status": "error", "message": "Missing required message data"}
 
+        logger.info(f"Received message from {sender_id}: {message_text}")
         await workflow.process_message(sender_id, message_text)
         logger.info(f"Successfully processed message from {sender_id}")
 

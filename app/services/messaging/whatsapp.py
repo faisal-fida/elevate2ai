@@ -92,3 +92,101 @@ class WhatsApp:
                     responses.append({"error": error_msg})
 
         return responses
+
+    async def send_interactive_buttons(
+        self,
+        phone_number: str,
+        header_text: str,
+        body_text: str,
+        buttons: List[Dict[str, str]],
+        recipient_type: str = "individual",
+    ) -> Dict[str, Any]:
+        """Send interactive buttons to a WhatsApp user
+
+        Args:
+            phone_number: The recipient's phone number
+            header_text: The header text for the message
+            body_text: The body text for the message
+            buttons: List of button objects with 'id' and 'title' keys
+            recipient_type: The recipient type (default: individual)
+
+        Returns:
+            API response as dictionary
+        """
+        # Format buttons according to WhatsApp API requirements
+        formatted_buttons = []
+        for button in buttons:
+            formatted_buttons.append(
+                {
+                    "type": "reply",
+                    "reply": {"id": button.get("id", ""), "title": button.get("title", "")},
+                }
+            )
+
+        data = {
+            "messaging_product": "whatsapp",
+            "recipient_type": recipient_type,
+            "to": phone_number,
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "header": {"type": "text", "text": header_text},
+                "body": {"text": body_text},
+                "action": {"buttons": formatted_buttons},
+            },
+        }
+
+        logging.info(f"Sending interactive buttons to {phone_number}")
+        async with httpx.AsyncClient() as client:
+            response = await client.post(self.url, headers=self.headers, json=data)
+
+        if response.status_code == 200:
+            logging.info(f"Interactive buttons sent to {phone_number}")
+        else:
+            logging.error(f"Failed to send interactive buttons to {phone_number}: {response.text}")
+        return response.json()
+
+    async def send_interactive_list(
+        self,
+        phone_number: str,
+        header_text: str,
+        body_text: str,
+        button_text: str,
+        sections: List[Dict[str, Any]],
+        recipient_type: str = "individual",
+    ) -> Dict[str, Any]:
+        """Send interactive list to a WhatsApp user
+
+        Args:
+            phone_number: The recipient's phone number
+            header_text: The header text for the message
+            body_text: The body text for the message
+            button_text: The text for the main button that opens the list
+            sections: List of section objects with 'title' and 'rows' keys
+            recipient_type: The recipient type (default: individual)
+
+        Returns:
+            API response as dictionary
+        """
+        data = {
+            "messaging_product": "whatsapp",
+            "recipient_type": recipient_type,
+            "to": phone_number,
+            "type": "interactive",
+            "interactive": {
+                "type": "list",
+                "header": {"type": "text", "text": header_text},
+                "body": {"text": body_text},
+                "action": {"button": button_text, "sections": sections},
+            },
+        }
+
+        logging.info(f"Sending interactive list to {phone_number}")
+        async with httpx.AsyncClient() as client:
+            response = await client.post(self.url, headers=self.headers, json=data)
+
+        if response.status_code == 200:
+            logging.info(f"Interactive list sent to {phone_number}")
+        else:
+            logging.error(f"Failed to send interactive list to {phone_number}: {response.text}")
+        return response.json()

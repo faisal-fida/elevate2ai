@@ -7,6 +7,16 @@ class WorkflowState(Enum):
     WAITING_FOR_PROMO = "waiting_for_promo"
     WAITING_FOR_APPROVAL = "waiting_for_approval"
 
+    # New states for social media posting workflow
+    PLATFORM_SELECTION = "platform_selection"
+    CONTENT_TYPE_SELECTION = "content_type_selection"
+    SAME_CONTENT_CONFIRMATION = "same_content_confirmation"
+    PLATFORM_SPECIFIC_CONTENT = "platform_specific_content"
+    CAPTION_INPUT = "caption_input"
+    SCHEDULE_SELECTION = "schedule_selection"
+    CONFIRMATION = "confirmation"
+    POST_EXECUTION = "post_execution"
+
 
 class StateManager:
     def __init__(self):
