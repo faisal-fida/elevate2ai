@@ -5,18 +5,9 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     ENVIRONMENT: Literal["development", "production"] = "development"
-    PROJECT_NAME: str = "FastAPI Supabase Template"
-    PROJECT_DESCRIPTION: str = "Production-ready FastAPI template with Supabase integration"
+    PROJECT_NAME: str = "FastAPI"
+    PROJECT_DESCRIPTION: str = "Production-ready FastAPI"
     LOG_LEVEL: str = "INFO"
-
-    TEST_AUTH_TOKEN: str = "test_token"
-    TEST_ADMIN_AUTH_TOKEN: str = "test_admin_token"
-
-    SUPABASE_URL: str = Field(..., env="SUPABASE_URL")
-    SUPABASE_KEY: str = Field(..., env="SUPABASE_KEY")
-    SUPABASE_JWT_SECRET: str = Field(..., env="SUPABASE_JWT_SECRET")
-    DB_POOL_SIZE: int = 5
-    DB_MAX_OVERFLOW: int = 10
 
     # Image Management Configuration
     PEXELS_API_KEY: str = Field(..., env="PEXELS_API_KEY")

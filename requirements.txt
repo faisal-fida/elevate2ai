@@ -5,7 +5,6 @@ passlib
 python-multipart
 pydantic
 pydantic-settings
-supabase
 python-dotenv
 openai
 requests
