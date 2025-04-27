@@ -203,7 +203,9 @@ class GoogleOAuthService:
                 or oauth_connection.provider != "google"
                 or not oauth_connection.refresh_token
             ):
-                logger.error(f"Invalid OAuth connection or missing refresh token")
+                logger.error(
+                    f"Invalid OAuth connection or missing refresh token for {oauth_connection_id}"
+                )
                 return None
 
             # Prepare token refresh request

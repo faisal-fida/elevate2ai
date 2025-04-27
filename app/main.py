@@ -5,9 +5,8 @@ from fastapi.params import Query
 from app.config import settings
 from app.api.webhook import verify_webhook, handle_message
 from app.api.auth.router import auth_router
-from app.middleware.auth import JWTAuthMiddleware
+from app.middleware.auth import CustomJWTAuthMiddleware
 from app.db.base import Base, engine
-import asyncio
 
 # Create FastAPI app
 app = FastAPI(title=settings.PROJECT_NAME, description=settings.PROJECT_DESCRIPTION)
@@ -23,7 +22,7 @@ app.add_middleware(
 
 # Add JWT authentication middleware with excluded paths
 app.add_middleware(
-    JWTAuthMiddleware,
+    CustomJWTAuthMiddleware,
     auto_error=True,
     exclude_paths=[
         r"^/$",
@@ -35,6 +34,7 @@ app.add_middleware(
         r"^/auth/google/.*$",
         r"^/auth/session/token$",
         r"^/auth/session/refresh$",
+        r"^/favicon\.ico$",
     ],
 )
 
