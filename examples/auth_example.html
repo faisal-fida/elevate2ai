@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        input[type="text"] {
+            padding: 8px;
+            margin: 5px 0;
+            width: 300px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Authentication Example</h1>
+    
+    <div class="container">
+        <h2>1. WhatsApp Authentication</h2>
+        <div>
+            <label for="whatsapp-number">WhatsApp Number:</label>
+            <input type="text" id="whatsapp-number" placeholder="e.g., 923408957390">
+            <button onclick="authenticateWhatsApp()">Authenticate</button>
+        </div>
+        <div id="auth-result" class="hidden">
+            <h3>Authentication Result:</h3>
+            <pre id="auth-result-json"></pre>
+        </div>
+    </div>
+    
+    <div class="container hidden" id="profile-container">
+        <h2>2. User Profile</h2>
+        <button onclick="getUserProfile()">Get Profile</button>
+        <div id="profile-result" class="hidden">
+            <h3>Profile:</h3>
+            <pre id="profile-result-json"></pre>
+        </div>
+    </div>
+    
+    <div class="container hidden" id="update-profile-container">
+        <h2>3. Update Profile</h2>
+        <div>
+            <label for="name">Name:</label>
+            <input type="text" id="name" placeholder="Your name">
+        </div>
+        <div>
+            <label for="email">Email:</label>
+            <input type="text" id="email" placeholder="Your email">
+        </div>
+        <button onclick="updateProfile()">Update Profile</button>
+        <div id="update-result" class="hidden">
+            <h3>Update Result:</h3>
+            <pre id="update-result-json"></pre>
+        </div>
+    </div>
+    
+    <div class="container hidden" id="refresh-container">
+        <h2>4. Refresh Token</h2>
+        <button onclick="refreshToken()">Refresh Token</button>
+        <div id="refresh-result" class="hidden">
+            <h3>Refresh Result:</h3>
+            <pre id="refresh-result-json"></pre>
+        </div>
+    </div>
+    
+    <div class="container hidden" id="google-container">
+        <h2>5. Google OAuth</h2>
+        <button onclick="startGoogleOAuth()">Link Google Account</button>
+    </div>
+    
+    <script>
+        // Store tokens and user data
+        let accessToken = '';
+        let refreshToken = '';
+        let whatsappNumber = '';
+        
+        // Base URL of the API
+        const BASE_URL = 'http://localhost:8000';
+        
+        // Authenticate with WhatsApp number
+        async function authenticateWhatsApp() {
+            const numberInput = document.getElementById('whatsapp-number');
+            whatsappNumber = numberInput.value.trim();
+            
+            if (!whatsappNumber) {
+                alert('Please enter a WhatsApp number');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/auth/whatsapp/authenticate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        whatsapp_number: whatsappNumber,
+                        device_info: {
+                            device_type: 'web',
+                            browser: navigator.userAgent
+                        }
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Store tokens
+                    accessToken = data.session.access_token;
+                    refreshToken = data.session.refresh_token;
+                    
+                    // Display result
+                    document.getElementById('auth-result').classList.remove('hidden');
+                    document.getElementById('auth-result-json').textContent = JSON.stringify(data, null, 2);
+                    
+                    // Show other sections
+                    document.getElementById('profile-container').classList.remove('hidden');
+                    document.getElementById('update-profile-container').classList.remove('hidden');
+                    document.getElementById('refresh-container').classList.remove('hidden');
+                    document.getElementById('google-container').classList.remove('hidden');
+                } else {
+                    const error = await response.text();
+                    alert(`Authentication failed: ${response.status} - ${error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+        
+        // Get user profile
+        async function getUserProfile() {
+            if (!accessToken) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/auth/whatsapp/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Display result
+                    document.getElementById('profile-result').classList.remove('hidden');
+                    document.getElementById('profile-result-json').textContent = JSON.stringify(data, null, 2);
+                    
+                    // Pre-fill update form
+                    if (data.name) document.getElementById('name').value = data.name;
+                    if (data.email) document.getElementById('email').value = data.email;
+                } else {
+                    const error = await response.text();
+                    alert(`Failed to get profile: ${response.status} - ${error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+        
+        // Update user profile
+        async function updateProfile() {
+            if (!accessToken) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/auth/whatsapp/profile`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        name: name || null,
+                        email: email || null
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Display result
+                    document.getElementById('update-result').classList.remove('hidden');
+                    document.getElementById('update-result-json').textContent = JSON.stringify(data, null, 2);
+                } else {
+                    const error = await response.text();
+                    alert(`Profile update failed: ${response.status} - ${error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+        
+        // Refresh token
+        async function refreshToken() {
+            if (!refreshToken) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/auth/session/refresh`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        refresh_token: refreshToken
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Update access token
+                    accessToken = data.access_token;
+                    
+                    // Display result
+                    document.getElementById('refresh-result').classList.remove('hidden');
+                    document.getElementById('refresh-result-json').textContent = JSON.stringify(data, null, 2);
+                } else {
+                    const error = await response.text();
+                    alert(`Token refresh failed: ${response.status} - ${error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+        
+        // Start Google OAuth flow
+        function startGoogleOAuth() {
+            if (!whatsappNumber) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            // Redirect to Google OAuth
+            window.location.href = `${BASE_URL}/api/auth/google/authorize?whatsapp_number=${whatsappNumber}`;
+        }
+    </script>
+</body>
+</html>

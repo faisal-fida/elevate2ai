@@ -15,7 +15,7 @@ router = APIRouter(prefix="/session", tags=["session"])
 logger = setup_logger(__name__)
 
 # OAuth2 scheme for token authentication
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/session/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/session/token")
 
 
 # Models
