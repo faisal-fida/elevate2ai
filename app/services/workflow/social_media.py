@@ -2,7 +2,9 @@ from app.services.messaging.client import MessagingClient
 from app.services.messaging.state_manager import StateManager, WorkflowState
 from app.services.content.generator import ContentGenerator
 from app.services.workflow.base import BaseWorkflow
-from app.services.workflow.handlers.content_type_selection import ContentTypeSelectionHandler
+from app.services.workflow.handlers.content_type_selection import (
+    ContentTypeSelectionHandler,
+)
 from app.services.workflow.handlers.platform_selection_for_content import (
     PlatformSelectionForContentHandler,
 )
@@ -20,8 +22,12 @@ class SocialMediaWorkflow(BaseWorkflow):
     ):
         super().__init__(client, state_manager)
         self.content_generator = content_generator
-        self.content_type_selection_handler = ContentTypeSelectionHandler(client, state_manager)
-        self.platform_selection_handler = PlatformSelectionForContentHandler(client, state_manager)
+        self.content_type_selection_handler = ContentTypeSelectionHandler(
+            client, state_manager
+        )
+        self.platform_selection_handler = PlatformSelectionForContentHandler(
+            client, state_manager
+        )
         self.caption_handler = CaptionHandler(client, state_manager, content_generator)
         self.scheduling_handler = SchedulingHandler(client, state_manager)
         self.execution_handler = ExecutionHandler(client, state_manager)
@@ -57,7 +63,8 @@ class SocialMediaWorkflow(BaseWorkflow):
                     f"Error processing message for {client_id} on state {current_state} at message {message}: {e}"
                 )
                 await self.send_message(
-                    client_id, "An error occurred while processing your message. Let's try again."
+                    client_id,
+                    "An error occurred while processing your message. Let's try again.",
                 )
             finally:
                 queue.task_done()
@@ -66,7 +73,13 @@ class SocialMediaWorkflow(BaseWorkflow):
         """Handle the initial state"""
         if message in ["hi", "hello", "hey", "hii"]:
             # Start with content type selection
-            self.state_manager.set_state(client_id, WorkflowState.CONTENT_TYPE_SELECTION)
-            await self.content_type_selection_handler.send_content_type_options(client_id)
+            self.state_manager.set_state(
+                client_id, WorkflowState.CONTENT_TYPE_SELECTION
+            )
+            await self.content_type_selection_handler.send_content_type_options(
+                client_id
+            )
         else:
-            await self.send_message(client_id, "To create a social media post, please type 'Hi'.")
+            await self.send_message(
+                client_id, "To create a social media post, please type 'Hi'."
+            )

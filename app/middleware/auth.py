@@ -13,7 +13,9 @@ class CustomJWTAuthMiddleware:
     Middleware for JWT authentication
     """
 
-    def __init__(self, app, auto_error: bool = True, exclude_paths: Optional[List[str]] = None):
+    def __init__(
+        self, app, auto_error: bool = True, exclude_paths: Optional[List[str]] = None
+    ):
         self.app = app
         self.auto_error = auto_error
         self.security = HTTPBearer(auto_error=auto_error)

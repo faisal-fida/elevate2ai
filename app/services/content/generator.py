@@ -25,7 +25,9 @@ class ContentGenerator:
                     },
                     {
                         "role": "user",
-                        "content": OPENAI_PROMPTS["caption_user"].format(promo_text=promo_text),
+                        "content": OPENAI_PROMPTS["caption_user"].format(
+                            promo_text=promo_text
+                        ),
                     },
                 ]
             )
@@ -42,7 +44,9 @@ class ContentGenerator:
                     },
                     {
                         "role": "user",
-                        "content": OPENAI_PROMPTS["search_user"].format(caption=caption),
+                        "content": OPENAI_PROMPTS["search_user"].format(
+                            caption=caption
+                        ),
                     },
                 ]
             )
@@ -52,7 +56,9 @@ class ContentGenerator:
 
             # Search for images
             self.logger.info(f"Generating images for: {promo_text_search}")
-            image_results = await self.image_service.search_images(promo_text_search, limit=4)
+            image_results = await self.image_service.search_images(
+                promo_text_search, limit=4
+            )
             if not image_results or len(image_results) < 4:
                 self.logger.warning("Not enough images found, using default.")
                 image_results = ["https://example.com/mock-image.jpg"] * 4
@@ -61,4 +67,7 @@ class ContentGenerator:
 
         except Exception as e:
             self.logger.error(f"Error generating content: {e}")
-            return "Error generating content", ["https://example.com/mock-image.jpg"] * 4
+            return (
+                "Error generating content",
+                ["https://example.com/mock-image.jpg"] * 4,
+            )

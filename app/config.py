@@ -1,5 +1,5 @@
 from typing import List, Literal, Optional
-from pydantic import AnyHttpUrl, Field, SecretStr
+from pydantic import AnyHttpUrl, Field
 from pydantic_settings import BaseSettings
 
 
@@ -11,14 +11,19 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["dev", "prod"] = Field(default="dev", env="ENVIRONMENT")
 
     # Database Configuration
-    DATABASE_URL: str = Field(default="sqlite+aiosqlite:///./app.db", env="DATABASE_URL")
+    DATABASE_URL: str = Field(
+        default="sqlite+aiosqlite:///./app.db", env="DATABASE_URL"
+    )
     SQL_ECHO: bool = Field(default=False, env="SQL_ECHO")
 
     # Google OAuth Configuration
     GOOGLE_CLIENT_ID: Optional[str] = Field(default=None, env="GOOGLE_CLIENT_ID")
-    GOOGLE_CLIENT_SECRET: Optional[str] = Field(default=None, env="GOOGLE_CLIENT_SECRET")
+    GOOGLE_CLIENT_SECRET: Optional[str] = Field(
+        default=None, env="GOOGLE_CLIENT_SECRET"
+    )
     GOOGLE_REDIRECT_URI: Optional[str] = Field(
-        default="http://localhost:8000/api/auth/google/callback", env="GOOGLE_REDIRECT_URI"
+        default="http://localhost:8000/api/auth/google/callback",
+        env="GOOGLE_REDIRECT_URI",
     )
 
     # JWT Configuration
@@ -26,8 +31,12 @@ class Settings(BaseSettings):
         default="your-secret-key-change-in-production", env="JWT_SECRET_KEY"
     )
     JWT_ALGORITHM: str = Field(default="HS256", env="JWT_ALGORITHM")
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30, env="JWT_ACCESS_TOKEN_EXPIRE_MINUTES")
-    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7, env="JWT_REFRESH_TOKEN_EXPIRE_DAYS")
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=30, env="JWT_ACCESS_TOKEN_EXPIRE_MINUTES"
+    )
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
+        default=7, env="JWT_REFRESH_TOKEN_EXPIRE_DAYS"
+    )
 
     # Image Management Configuration
     PEXELS_API_KEY: str = Field(..., env="PEXELS_API_KEY")

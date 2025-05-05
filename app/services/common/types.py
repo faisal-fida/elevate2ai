@@ -5,7 +5,9 @@ from dataclasses import dataclass
 # Common type definitions
 MediaType = Literal["image", "video"]
 PlatformType = Literal["instagram", "linkedin", "tiktok"]
-ContentType = Literal["events", "destination", "promo", "tips", "seasonal", "reels", "generic"]
+ContentType = Literal[
+    "events", "destination", "promo", "tips", "seasonal", "reels", "generic"
+]
 WorkflowStateType = Literal[
     "init",
     "waiting_for_promo",
@@ -59,7 +61,9 @@ class WorkflowContext:
     platform_specific_captions: Dict[str, str] = None
     current_platform_index: int = 0
     post_status: Dict[str, bool] = None
-    supported_platforms: List[str] = None  # Platforms that support the selected content type
+    supported_platforms: List[str] = (
+        None  # Platforms that support the selected content type
+    )
     platform_images: Dict[str, str] = None  # Platform-specific edited images
 
     def __post_init__(self):

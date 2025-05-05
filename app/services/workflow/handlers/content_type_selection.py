@@ -1,7 +1,11 @@
 from typing import List, Set
 from app.services.messaging.state_manager import WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
-from app.constants import MESSAGES, SOCIAL_MEDIA_PLATFORMS, get_platforms_for_content_type
+from app.constants import (
+    MESSAGES,
+    SOCIAL_MEDIA_PLATFORMS,
+    get_platforms_for_content_type,
+)
 from app.services.common.types import WorkflowContext
 
 
@@ -27,10 +31,14 @@ class ContentTypeSelectionHandler(BaseHandler):
             self.state_manager.update_context(client_id, vars(context))
 
             # Move to platform selection for this content type
-            self.state_manager.set_state(client_id, WorkflowState.PLATFORM_SELECTION_FOR_CONTENT)
+            self.state_manager.set_state(
+                client_id, WorkflowState.PLATFORM_SELECTION_FOR_CONTENT
+            )
 
             # Send platform options
-            await self.send_platform_options_for_content(client_id, message, supported_platforms)
+            await self.send_platform_options_for_content(
+                client_id, message, supported_platforms
+            )
         else:
             await self.send_message(client_id, "Please select a valid content type.")
             await self.send_content_type_options(client_id)

@@ -113,7 +113,9 @@ class GoogleOAuthService:
         """
         try:
             # Check if user exists
-            result = await db.execute(select(User).where(User.whatsapp_number == whatsapp_number))
+            result = await db.execute(
+                select(User).where(User.whatsapp_number == whatsapp_number)
+            )
             user = result.scalars().first()
 
             if not user:
@@ -129,7 +131,10 @@ class GoogleOAuthService:
             )
             existing_connection = result.scalars().first()
 
-            if existing_connection and existing_connection.whatsapp_number != whatsapp_number:
+            if (
+                existing_connection
+                and existing_connection.whatsapp_number != whatsapp_number
+            ):
                 logger.error(
                     f"Google account already linked to another WhatsApp number {existing_connection.whatsapp_number}"
                 )
@@ -140,7 +145,9 @@ class GoogleOAuthService:
                 # Update existing connection
                 existing_connection.access_token = access_token
                 existing_connection.refresh_token = (
-                    refresh_token if refresh_token else existing_connection.refresh_token
+                    refresh_token
+                    if refresh_token
+                    else existing_connection.refresh_token
                 )
                 existing_connection.token_expiry = token_expiry
                 existing_connection.last_used = datetime.utcnow()
@@ -256,14 +263,18 @@ class GoogleOAuthService:
             oauth_connection = result.scalars().first()
 
             if not oauth_connection:
-                logger.error(f"No Google account linked to WhatsApp number {whatsapp_number}")
+                logger.error(
+                    f"No Google account linked to WhatsApp number {whatsapp_number}"
+                )
                 return False
 
             # Delete OAuth connection
             await db.delete(oauth_connection)
 
             # Update user
-            result = await db.execute(select(User).where(User.whatsapp_number == whatsapp_number))
+            result = await db.execute(
+                select(User).where(User.whatsapp_number == whatsapp_number)
+            )
             user = result.scalars().first()
 
             if user:

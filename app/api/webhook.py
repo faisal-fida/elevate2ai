@@ -70,7 +70,10 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
                 logger.info(f"Extracted list reply ID: {message_text}")
             else:
                 logger.error(f"Unknown interactive message format: {interactive}")
-                return {"status": "error", "message": "Unknown interactive message format"}
+                return {
+                    "status": "error",
+                    "message": "Unknown interactive message format",
+                }
         else:
             if message.get("type") != "text":
                 logger.info(f"Ignoring non-text message of type: {message.get('type')}")

@@ -43,7 +43,9 @@ class ExecutionHandler(BaseHandler):
         try:
             for platform in context.selected_platforms:
                 # Get the content type for this platform
-                content_type = context.content_types.get(platform, context.selected_content_type)
+                content_type = context.content_types.get(
+                    platform, context.selected_content_type
+                )
                 self.logger.info(
                     f"Generating image for {platform} with content type {content_type}"
                 )
@@ -58,20 +60,26 @@ class ExecutionHandler(BaseHandler):
                     )
 
                     if image_response and "sizes" in image_response:
-                        context.platform_images[platform] = image_response["sizes"][0]["url"]
+                        context.platform_images[platform] = image_response["sizes"][0][
+                            "url"
+                        ]
                         self.logger.info(f"Successfully generated image for {platform}")
                     else:
                         self.logger.warning(f"No image URL returned for {platform}")
                         context.platform_images[platform] = context.selected_image
 
                 except Exception as e:
-                    self.logger.error(f"Error generating image for {platform}: {str(e)}")
+                    self.logger.error(
+                        f"Error generating image for {platform}: {str(e)}"
+                    )
                     context.platform_images[platform] = context.selected_image
 
             # Update context with generated images
             self.state_manager.update_context(client_id, vars(context))
 
-            await self.send_message(client_id, "Here are the edited images for each platform:")
+            await self.send_message(
+                client_id, "Here are the edited images for each platform:"
+            )
             for platform, image_url in context.platform_images.items():
                 await self.client.send_media(
                     media_items=[{"type": "image", "url": image_url}],
@@ -111,7 +119,8 @@ class ExecutionHandler(BaseHandler):
         if success_platforms and not failed_platforms:
             # All platforms succeeded
             await self.send_message(
-                client_id, MESSAGES["post_success"].format(platforms=", ".join(success_platforms))
+                client_id,
+                MESSAGES["post_success"].format(platforms=", ".join(success_platforms)),
             )
         elif success_platforms and failed_platforms:
             # Some platforms succeeded, some failed
@@ -132,11 +141,15 @@ class ExecutionHandler(BaseHandler):
             client_id, "Type 'Create Post' when you're ready to create another post."
         )
 
-    async def send_confirmation_summary(self, client_id: str, context: WorkflowContext) -> None:
+    async def send_confirmation_summary(
+        self, client_id: str, context: WorkflowContext
+    ) -> None:
         """Send confirmation summary to the client"""
         # Format platforms and content types
         platforms = ", ".join(context.selected_platforms)
-        content_types = ", ".join([f"{p}: {t}" for p, t in context.content_types.items()])
+        content_types = ", ".join(
+            [f"{p}: {t}" for p, t in context.content_types.items()]
+        )
 
         # Create summary message
         summary = MESSAGES["confirmation_summary"].format(
@@ -148,14 +161,19 @@ class ExecutionHandler(BaseHandler):
 
         # Send the selected image with the summary
         await self.client.send_media(
-            media_items=[{"type": "image", "url": context.selected_image, "caption": summary}],
+            media_items=[
+                {"type": "image", "url": context.selected_image, "caption": summary}
+            ],
             phone_number=client_id,
         )
 
         await asyncio.sleep(1)
 
         # Send confirmation buttons
-        buttons = [{"id": "yes", "title": "Yes, Continue"}, {"id": "no", "title": "No, Start Over"}]
+        buttons = [
+            {"id": "yes", "title": "Yes, Continue"},
+            {"id": "no", "title": "No, Start Over"},
+        ]
 
         await self.client.send_interactive_buttons(
             header_text="Confirmation",

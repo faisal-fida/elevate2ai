@@ -54,7 +54,10 @@ async def login_for_access_token(
 
     # Create session
     session_data = await SessionService.create_session(
-        db=db, whatsapp_number=whatsapp_number, user_agent=user_agent, ip_address=client_host
+        db=db,
+        whatsapp_number=whatsapp_number,
+        user_agent=user_agent,
+        ip_address=client_host,
     )
 
     if not session_data:
@@ -124,12 +127,15 @@ async def revoke_session(
             )
 
         result = await SessionService.revoke_all_sessions(
-            db=db, whatsapp_number=current_user["whatsapp_number"], except_session_id=payload["jti"]
+            db=db,
+            whatsapp_number=current_user["whatsapp_number"],
+            except_session_id=payload["jti"],
         )
 
     if not result:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to revoke session(s)"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to revoke session(s)",
         )
 
     return {"status": "success", "message": "Session(s) revoked"}

@@ -12,7 +12,9 @@ class PixabayProvider:
         self.api_key = settings.PIXABAY_API_KEY
         self.logger = setup_logger(__name__)
 
-    async def search(self, query: str, limit: int, client: httpx.AsyncClient) -> List[str]:
+    async def search(
+        self, query: str, limit: int, client: httpx.AsyncClient
+    ) -> List[str]:
         """Search for images on Pixabay"""
         url = (
             f"https://pixabay.com/api/?key={self.api_key}"

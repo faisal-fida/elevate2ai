@@ -31,7 +31,9 @@ class SessionService:
         """
         try:
             # Check if user exists
-            result = await db.execute(select(User).where(User.whatsapp_number == whatsapp_number))
+            result = await db.execute(
+                select(User).where(User.whatsapp_number == whatsapp_number)
+            )
             user = result.scalars().first()
 
             if not user:
@@ -115,7 +117,9 @@ class SessionService:
             return None
 
     @staticmethod
-    async def refresh_session(db: AsyncSession, refresh_token: str) -> Optional[Dict[str, Any]]:
+    async def refresh_session(
+        db: AsyncSession, refresh_token: str
+    ) -> Optional[Dict[str, Any]]:
         """
         Refresh a session using a refresh token
         """
@@ -203,7 +207,9 @@ class SessionService:
         Clean up expired sessions
         """
         try:
-            result = await db.execute(delete(Session).where(Session.expires_at < datetime.utcnow()))
+            result = await db.execute(
+                delete(Session).where(Session.expires_at < datetime.utcnow())
+            )
             await db.commit()
 
             return result.rowcount

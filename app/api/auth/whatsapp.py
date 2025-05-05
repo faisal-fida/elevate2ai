@@ -47,7 +47,9 @@ async def get_current_user(
     from app.models.user import User
     from sqlalchemy.future import select
 
-    result = await db.execute(select(User).where(User.whatsapp_number == payload["sub"]))
+    result = await db.execute(
+        select(User).where(User.whatsapp_number == payload["sub"])
+    )
     user = result.scalars().first()
 
     if not user:
@@ -69,7 +71,9 @@ async def get_current_user(
 # Routes
 @router.post("/authenticate", response_model=Dict[str, Any])
 async def authenticate_whatsapp(
-    auth_request: WhatsAppAuthRequest, request: Request, db: AsyncSession = Depends(get_db)
+    auth_request: WhatsAppAuthRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Authenticate a user using WhatsApp number
@@ -105,7 +109,9 @@ async def verify_whatsapp(whatsapp_number: str, db: AsyncSession = Depends(get_d
     )
 
     if not result:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Verification failed")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Verification failed"
+        )
 
     return {"status": "success", "message": "WhatsApp number verified"}
 
@@ -129,7 +135,9 @@ async def update_profile(
     )
 
     if not result:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Profile update failed")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Profile update failed"
+        )
 
     return {
         "whatsapp_number": result.whatsapp_number,
@@ -142,7 +150,9 @@ async def update_profile(
 
 
 @router.get("/me", response_model=Dict[str, Any])
-async def get_current_user_profile(current_user: Dict[str, Any] = Depends(get_current_user)):
+async def get_current_user_profile(
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
     """
     Get current user profile
     """

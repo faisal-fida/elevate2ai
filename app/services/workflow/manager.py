@@ -12,7 +12,9 @@ class WorkflowManager:
     def __init__(self):
         self.logger = setup_logger(__name__)
         self.state_manager = StateManager()
-        self.whatsapp = WhatsApp(settings.WHATSAPP_TOKEN, settings.WHATSAPP_PHONE_NUMBER_ID)
+        self.whatsapp = WhatsApp(
+            settings.WHATSAPP_TOKEN, settings.WHATSAPP_PHONE_NUMBER_ID
+        )
         self.content_generator = ContentGenerator()
         self.social_media_workflow = SocialMediaWorkflow(
             self.whatsapp, self.state_manager, self.content_generator

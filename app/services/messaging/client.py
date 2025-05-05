@@ -11,12 +11,17 @@ class MessagingClient:
     def __init__(self):
         self.logger = setup_logger(__name__)
 
-    async def send_message(self, message: str, recipient_id: str, **kwargs) -> Dict[str, Any]:
+    async def send_message(
+        self, message: str, recipient_id: str, **kwargs
+    ) -> Dict[str, Any]:
         """Send a text message to a recipient"""
         raise NotImplementedError("Subclasses must implement this method")
 
     async def send_media(
-        self, media_items: Union[MediaItem, List[MediaItem]], recipient_id: str, **kwargs
+        self,
+        media_items: Union[MediaItem, List[MediaItem]],
+        recipient_id: str,
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send media to a recipient"""
         raise NotImplementedError("Subclasses must implement this method")
@@ -48,14 +53,19 @@ class MessagingClient:
 class WhatsApp(MessagingClient):
     """WhatsApp messaging client implementation"""
 
-    def __init__(self, token: Optional[str] = None, phone_number_id: Optional[str] = None):
+    def __init__(
+        self, token: Optional[str] = None, phone_number_id: Optional[str] = None
+    ):
         super().__init__()
         self.token = token
         self.phone_number_id = phone_number_id
         self.base_url = "https://graph.facebook.com/v14.0"
         self.v15_base_url = "https://graph.facebook.com/v15.0"
         self.url = f"{self.base_url}/{phone_number_id}/messages"
-        self.headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.token}"}
+        self.headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.token}",
+        }
 
     def preprocess(self, data: Dict[Any, Any]) -> Dict[Any, Any]:
         """Preprocess webhook data before handling"""
@@ -88,7 +98,9 @@ class WhatsApp(MessagingClient):
             response = await client.post(self.url, headers=self.headers, json=data)
 
         if response.status_code != 200:
-            self.logger.error(f"Failed to send message to {phone_number}: {response.text}")
+            self.logger.error(
+                f"Failed to send message to {phone_number}: {response.text}"
+            )
 
         self.logger.info(f"Sent message to {phone_number}.")
         return response.json()
@@ -123,7 +135,9 @@ class WhatsApp(MessagingClient):
                     payload[media_type]["caption"] = caption
 
                 try:
-                    response = await client.post(self.url, headers=self.headers, json=payload)
+                    response = await client.post(
+                        self.url, headers=self.headers, json=payload
+                    )
                     response.raise_for_status()
                     responses.append(response.json())
                 except Exception as e:
@@ -147,7 +161,9 @@ class WhatsApp(MessagingClient):
         """
         # Check if buttons list is empty
         if not buttons:
-            self.logger.warning("Empty buttons list provided, sending regular message instead")
+            self.logger.warning(
+                "Empty buttons list provided, sending regular message instead"
+            )
             await self.send_message(
                 message=f"{header_text}\n\n{body_text}",
                 phone_number=phone_number,

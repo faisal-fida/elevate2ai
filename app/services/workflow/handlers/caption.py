@@ -47,14 +47,20 @@ class CaptionHandler(BaseHandler):
         self.state_manager.update_context(client_id, vars(context))
 
         # Send the generated content for approval
-        await self.send_message(client_id, f"Here is the caption for the post: {caption}")
+        await self.send_message(
+            client_id, f"Here is the caption for the post: {caption}"
+        )
         await self.send_message(client_id, "Please select one of the images below:")
 
         # Send the media items as a gallery
         media_items = []
         for idx, url in enumerate(image_urls, 1):
             media_items.append(
-                {"type": "image", "url": url, "caption": f"Reply with {idx} to select this image."}
+                {
+                    "type": "image",
+                    "url": url,
+                    "caption": f"Reply with {idx} to select this image.",
+                }
             )
 
         await self.send_media_gallery(client_id, media_items)
@@ -62,7 +68,9 @@ class CaptionHandler(BaseHandler):
         # Move to schedule selection
         self.state_manager.set_state(client_id, WorkflowState.SCHEDULE_SELECTION)
 
-    async def send_media_gallery(self, client_id: str, media_items: List[MediaItem]) -> None:
+    async def send_media_gallery(
+        self, client_id: str, media_items: List[MediaItem]
+    ) -> None:
         """Send a media gallery to the client"""
         for item in media_items:
             await self.client.send_media(media_items=[item], phone_number=client_id)

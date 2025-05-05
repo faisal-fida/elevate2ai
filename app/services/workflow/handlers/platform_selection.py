@@ -21,7 +21,9 @@ class PlatformSelectionHandler(BaseHandler):
             platforms_str = ", ".join(
                 platform.capitalize() for platform in context.selected_platforms
             )
-            await self.send_message(client_id, f"You've selected all platforms: {platforms_str}")
+            await self.send_message(
+                client_id, f"You've selected all platforms: {platforms_str}"
+            )
 
             # Move to content type selection
             await self._proceed_to_content_type_selection(client_id, context)
@@ -32,7 +34,9 @@ class PlatformSelectionHandler(BaseHandler):
             self.state_manager.update_context(client_id, vars(context))
 
             # Send confirmation message
-            await self.send_message(client_id, f"You've selected: {message.capitalize()}")
+            await self.send_message(
+                client_id, f"You've selected: {message.capitalize()}"
+            )
 
             # Move to content type selection
             await self._proceed_to_content_type_selection(client_id, context)
@@ -71,7 +75,9 @@ class PlatformSelectionHandler(BaseHandler):
             phone_number=client_id,
         )
 
-    async def send_content_type_options(self, client_id: str, content_types: List[str]) -> None:
+    async def send_content_type_options(
+        self, client_id: str, content_types: List[str]
+    ) -> None:
         """Send content type options to the client"""
         # Send message first to provide context
         await self.send_message(client_id, MESSAGES["content_type_selection"])

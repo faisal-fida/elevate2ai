@@ -22,7 +22,9 @@ class SchedulingHandler(BaseHandler):
                 # Send scheduling options
                 await self.send_scheduling_options(client_id)
             else:
-                await self.send_message(client_id, "Please select a valid image number (1-4).")
+                await self.send_message(
+                    client_id, "Please select a valid image number (1-4)."
+                )
 
         elif message in ["now", "later", "tomorrow", "next week"]:
             # Store the schedule
@@ -33,7 +35,9 @@ class SchedulingHandler(BaseHandler):
             self.state_manager.set_state(client_id, WorkflowState.CONFIRMATION)
             await self.send_confirmation_summary(client_id, context)
         else:
-            await self.send_message(client_id, "Please select a valid scheduling option.")
+            await self.send_message(
+                client_id, "Please select a valid scheduling option."
+            )
             await self.send_scheduling_options(client_id)
 
     async def send_scheduling_options(self, client_id: str) -> None:
@@ -57,10 +61,14 @@ class SchedulingHandler(BaseHandler):
             phone_number=client_id,
         )
 
-    async def send_confirmation_summary(self, client_id: str, context: WorkflowContext) -> None:
+    async def send_confirmation_summary(
+        self, client_id: str, context: WorkflowContext
+    ) -> None:
         """Send confirmation summary to the client"""
         # Format platforms and content type
-        platforms = ", ".join(platform.capitalize() for platform in context.selected_platforms)
+        platforms = ", ".join(
+            platform.capitalize() for platform in context.selected_platforms
+        )
 
         # Create summary message
         summary = MESSAGES["confirmation_summary"].format(
@@ -73,7 +81,9 @@ class SchedulingHandler(BaseHandler):
         # Send the selected image with the summary
         if context.selected_image:
             await self.client.send_media(
-                media_items=[{"type": "image", "url": context.selected_image, "caption": summary}],
+                media_items=[
+                    {"type": "image", "url": context.selected_image, "caption": summary}
+                ],
                 phone_number=client_id,
             )
         else:
@@ -83,7 +93,10 @@ class SchedulingHandler(BaseHandler):
         await asyncio.sleep(1)
 
         # Send confirmation buttons
-        buttons = [{"id": "yes", "title": "Yes, Continue"}, {"id": "no", "title": "No, Start Over"}]
+        buttons = [
+            {"id": "yes", "title": "Yes, Continue"},
+            {"id": "no", "title": "No, Start Over"},
+        ]
 
         await self.client.send_interactive_buttons(
             header_text="Confirmation",

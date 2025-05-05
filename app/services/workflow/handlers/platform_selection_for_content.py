@@ -15,7 +15,8 @@ class PlatformSelectionForContentHandler(BaseHandler):
         # Make sure we have supported platforms
         if not context.supported_platforms:
             await self.send_message(
-                client_id, "No supported platforms found for this content type. Please start over."
+                client_id,
+                "No supported platforms found for this content type. Please start over.",
             )
             self.state_manager.set_state(client_id, WorkflowState.INIT)
             return
@@ -42,13 +43,17 @@ class PlatformSelectionForContentHandler(BaseHandler):
             self.state_manager.update_context(client_id, vars(context))
 
             # Send confirmation message
-            await self.send_message(client_id, f"You've selected: {message.capitalize()}")
+            await self.send_message(
+                client_id, f"You've selected: {message.capitalize()}"
+            )
 
             # Move to caption input
             await self._proceed_to_caption_input(client_id)
 
         else:
-            await self.send_message(client_id, "Please select a valid platform or 'All'.")
+            await self.send_message(
+                client_id, "Please select a valid platform or 'All'."
+            )
             await self.send_platform_options(
                 client_id, context.selected_content_type, context.supported_platforms
             )

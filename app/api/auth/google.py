@@ -25,7 +25,10 @@ class GoogleLinkRequest(BaseModel):
 # Routes
 @router.get("/authorize")
 async def authorize_google(
-    whatsapp_number: str, request: Request, response: Response, db: AsyncSession = Depends(get_db)
+    whatsapp_number: str,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Start Google OAuth flow
@@ -34,11 +37,15 @@ async def authorize_google(
     from app.models.user import User
     from sqlalchemy.future import select
 
-    result = await db.execute(select(User).where(User.whatsapp_number == whatsapp_number))
+    result = await db.execute(
+        select(User).where(User.whatsapp_number == whatsapp_number)
+    )
     user = result.scalars().first()
 
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     # Generate state parameter to prevent CSRF
     state = str(uuid.uuid4())
@@ -125,7 +132,9 @@ async def google_callback(
 
         token_expiry = None
         if "expires_in" in token_data:
-            token_expiry = datetime.utcnow() + timedelta(seconds=token_data["expires_in"])
+            token_expiry = datetime.utcnow() + timedelta(
+                seconds=token_data["expires_in"]
+            )
 
         result = await GoogleOAuthService.link_google_account(
             db=db,
@@ -155,7 +164,8 @@ async def google_callback(
 
 @router.post("/unlink")
 async def unlink_google(
-    current_user: Dict[str, Any] = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Unlink Google account
@@ -166,7 +176,8 @@ async def unlink_google(
 
     if not result:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to unlink Google account"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to unlink Google account",
         )
 
     return {"status": "success", "message": "Google account unlinked"}

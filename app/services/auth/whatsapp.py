@@ -27,7 +27,9 @@ class WhatsAppAuthService:
         """
         try:
             # Check if user exists
-            result = await db.execute(select(User).where(User.whatsapp_number == whatsapp_number))
+            result = await db.execute(
+                select(User).where(User.whatsapp_number == whatsapp_number)
+            )
             user = result.scalars().first()
 
             # If user doesn't exist, create a new one
@@ -53,7 +55,9 @@ class WhatsAppAuthService:
             )
 
             if not session_data:
-                logger.error(f"Failed to create session for WhatsApp number {whatsapp_number}")
+                logger.error(
+                    f"Failed to create session for WhatsApp number {whatsapp_number}"
+                )
                 return None
 
             # Return user data and session
@@ -79,7 +83,9 @@ class WhatsAppAuthService:
         """
         try:
             # Check if user exists
-            result = await db.execute(select(User).where(User.whatsapp_number == whatsapp_number))
+            result = await db.execute(
+                select(User).where(User.whatsapp_number == whatsapp_number)
+            )
             user = result.scalars().first()
 
             if not user:
@@ -111,7 +117,9 @@ class WhatsAppAuthService:
         """
         try:
             # Check if user exists
-            result = await db.execute(select(User).where(User.whatsapp_number == whatsapp_number))
+            result = await db.execute(
+                select(User).where(User.whatsapp_number == whatsapp_number)
+            )
             user = result.scalars().first()
 
             if not user:
@@ -132,7 +140,9 @@ class WhatsAppAuthService:
                     try:
                         existing_metadata = json.loads(user.metadata_json)
                     except json.JSONDecodeError:
-                        logger.warning(f"Invalid JSON in metadata for user {whatsapp_number}")
+                        logger.warning(
+                            f"Invalid JSON in metadata for user {whatsapp_number}"
+                        )
                         existing_metadata = {}
 
                 # Update with new metadata

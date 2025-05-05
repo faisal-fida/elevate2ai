@@ -12,7 +12,9 @@ class UnsplashProvider:
         self.api_key = settings.UNSPLASH_API_KEY
         self.logger = setup_logger(__name__)
 
-    async def search(self, query: str, limit: int, client: httpx.AsyncClient) -> List[str]:
+    async def search(
+        self, query: str, limit: int, client: httpx.AsyncClient
+    ) -> List[str]:
         """Search for images on Unsplash"""
         url = f"https://api.unsplash.com/search/photos?query={quote(query)}&per_page={limit}"
         headers = {
