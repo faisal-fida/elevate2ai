@@ -1,6 +1,7 @@
-from sqlalchemy import Column, String, ForeignKey, DateTime, Boolean, Text
+from sqlalchemy import Column, String, ForeignKey, DateTime, Boolean, JSON, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
+from app.config import settings
 from app.db.base import Base
 import uuid
 
@@ -30,14 +31,18 @@ class Session(Base):
     # Device information
     user_agent = Column(Text, nullable=True)
     ip_address = Column(String(45), nullable=True)  # IPv6 can be up to 45 chars
-    device_info = Column(Text, nullable=True)  # Store device info as JSON
+    device_info = Column(JSON, nullable=True)  # Store device info as JSON
 
     # Session status
     is_active = Column(Boolean, default=True)
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
-    expires_at = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(days=7))
+    expires_at = Column(
+        DateTime,
+        default=lambda: datetime.utcnow()
+        + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+    )
     last_activity = Column(DateTime, default=datetime.utcnow)
 
     # Relationships

@@ -55,25 +55,23 @@ class SessionService:
                 refresh_token=refresh_token,
                 user_agent=user_agent,
                 ip_address=ip_address,
-                device_info=str(device_info) if device_info else None,
+                device_info=device_info,
                 is_active=True,
                 created_at=datetime.utcnow(),
-                expires_at=datetime.utcnow() + timedelta(days=7),
+                expires_at=datetime.utcnow()
+                + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
                 last_activity=datetime.utcnow(),
             )
 
-            # Add session to database
+            # Add session and update user's last login in one transaction
             db.add(session)
-            await db.commit()
-            await db.refresh(session)
-
-            # Update user's last login
             await db.execute(
                 update(User)
                 .where(User.whatsapp_number == whatsapp_number)
                 .values(last_login=datetime.utcnow())
             )
             await db.commit()
+            await db.refresh(session)
 
             return {
                 "access_token": access_token,

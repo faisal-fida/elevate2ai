@@ -4,6 +4,8 @@ from jose import jwt, JWTError
 from app.config import settings
 from app.services.common.logging import setup_logger
 import uuid
+from fastapi import HTTPException, status
+from jose.exceptions import ExpiredSignatureError
 
 logger = setup_logger(__name__)
 
@@ -31,6 +33,8 @@ def create_access_token(
             "iat": datetime.utcnow(),
             "jti": str(uuid.uuid4()),
             "type": "access",
+            "iss": settings.PROJECT_NAME,
+            "aud": "access",
         }
     )
 
@@ -65,6 +69,8 @@ def create_refresh_token(
             "iat": datetime.utcnow(),
             "jti": str(uuid.uuid4()),
             "type": "refresh",
+            "iss": settings.PROJECT_NAME,
+            "aud": "refresh",
         }
     )
 
@@ -76,15 +82,26 @@ def create_refresh_token(
     return encoded_jwt
 
 
-def verify_token(token: str) -> Optional[Dict[str, Any]]:
+def verify_token(token: str) -> Dict[str, Any]:
     """
-    Verify a JWT token and return its payload
+    Verify a JWT token and return its payload, raising HTTPException on failure
     """
     try:
         payload = jwt.decode(
             token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
         )
         return payload
+    except ExpiredSignatureError as e:
+        logger.error(f"JWT expired: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     except JWTError as e:
         logger.error(f"JWT verification error: {e}")
-        return None
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )

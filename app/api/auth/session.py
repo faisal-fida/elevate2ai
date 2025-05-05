@@ -97,11 +97,13 @@ async def refresh_access_token(
         "access_token": token_data["access_token"],
         "token_type": token_data["token_type"],
         "expires_in": token_data["expires_in"],
+        "refresh_token": token_data.get("refresh_token"),
     }
 
 
 @router.post("/revoke")
 async def revoke_session(
+    request: Request,
     session_id: Optional[str] = None,
     current_user: Dict[str, Any] = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -116,7 +118,7 @@ async def revoke_session(
         # Revoke all sessions except current one
         from app.services.auth.security import verify_token
 
-        token = await oauth2_scheme(request=Request())
+        token = await oauth2_scheme(request)
         payload = verify_token(token)
 
         if not payload or "jti" not in payload:
