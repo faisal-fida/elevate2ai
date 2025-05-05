@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime, func, Text
+from sqlalchemy import Column, String, Boolean, DateTime, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base import Base
@@ -32,9 +32,6 @@ class User(Base):
     last_login = Column(DateTime, nullable=True)
 
     # Relationships
-    oauth_connections = relationship(
-        "OAuthConnection", back_populates="user", cascade="all, delete-orphan"
-    )
     sessions = relationship(
         "Session", back_populates="user", cascade="all, delete-orphan"
     )

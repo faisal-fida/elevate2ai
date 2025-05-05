@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional
+from typing import List, Literal
 from pydantic import AnyHttpUrl, Field
 from pydantic_settings import BaseSettings
 
@@ -15,16 +15,6 @@ class Settings(BaseSettings):
         default="sqlite+aiosqlite:///./app.db", env="DATABASE_URL"
     )
     SQL_ECHO: bool = Field(default=False, env="SQL_ECHO")
-
-    # Google OAuth Configuration
-    GOOGLE_CLIENT_ID: Optional[str] = Field(default=None, env="GOOGLE_CLIENT_ID")
-    GOOGLE_CLIENT_SECRET: Optional[str] = Field(
-        default=None, env="GOOGLE_CLIENT_SECRET"
-    )
-    GOOGLE_REDIRECT_URI: Optional[str] = Field(
-        default="http://localhost:8000/api/auth/google/callback",
-        env="GOOGLE_REDIRECT_URI",
-    )
 
     # JWT Configuration
     JWT_SECRET_KEY: str = Field(

@@ -21,7 +21,7 @@ Base = declarative_base()
 
 
 # Dependency to get DB session
-async def get_db() -> AsyncSession:
+async def get_db():
     """
     Dependency for getting async DB session
     """
