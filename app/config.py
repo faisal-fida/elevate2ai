@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     WHATSAPP_PHONE_NUMBER_ID: str = Field(..., env="WHATSAPP_PHONE_NUMBER_ID")
     WHATSAPP_VERIFY_TOKEN: str = Field(..., env="WHATSAPP_VERIFY_TOKEN")
 
+    # Admin User Configuration
+    ADMIN_WHATSAPP_NUMBER: str = Field(..., env="ADMIN_WHATSAPP_NUMBER")
+    ADMIN_PASSWORD: str = Field(..., env="ADMIN_PASSWORD")
+
     # Security Configuration
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = Field(
         default=["http://localhost:3000"], env="BACKEND_CORS_ORIGINS"

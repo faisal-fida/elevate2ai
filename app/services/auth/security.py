@@ -11,7 +11,9 @@ logger = setup_logger(__name__)
 
 
 def create_access_token(
-    data: Dict[str, Any], expires_delta: Optional[timedelta] = None
+    data: Dict[str, Any],
+    expires_delta: Optional[timedelta] = None,
+    jti: Optional[str] = None,
 ) -> str:
     """
     Create a JWT access token
@@ -31,7 +33,7 @@ def create_access_token(
         {
             "exp": expire,
             "iat": datetime.utcnow(),
-            "jti": str(uuid.uuid4()),
+            "jti": jti if jti else str(uuid.uuid4()),
             "type": "access",
             "iss": settings.PROJECT_NAME,
             "aud": "access",

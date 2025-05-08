@@ -43,13 +43,13 @@ class SessionService:
             # Create tokens
             access_token_data = {"sub": whatsapp_number}
             refresh_token_data = {"sub": whatsapp_number}
-
-            access_token = create_access_token(access_token_data)
+            access_token_jti = str(uuid.uuid4())
+            access_token = create_access_token(access_token_data, jti=access_token_jti)
             refresh_token = create_refresh_token(refresh_token_data)
 
             # Create session
             session = Session(
-                id=str(uuid.uuid4()),
+                id=access_token_jti,
                 whatsapp_number=whatsapp_number,
                 token=access_token,
                 refresh_token=refresh_token,
@@ -155,47 +155,57 @@ class SessionService:
             return None
 
     @staticmethod
-    async def revoke_session(db: AsyncSession, session_id: str) -> bool:
+    async def revoke_session_by_jti(
+        db: AsyncSession, session_jti: str, whatsapp_number: str
+    ) -> bool:
         """
-        Revoke a session
+        Revoke a specific session by its JTI (JWT ID) for a given user.
+        Ensures that a user can only revoke their own sessions.
         """
         try:
             result = await db.execute(
-                update(Session).where(Session.id == session_id).values(is_active=False)
+                update(Session)
+                .where(
+                    Session.id == session_jti,
+                    Session.whatsapp_number == whatsapp_number,
+                    Session.is_active,
+                )
+                .values(is_active=False, expires_at=datetime.now(datetime.timezone.utc))
             )
             await db.commit()
-
             return result.rowcount > 0
-
         except Exception as e:
-            logger.error(f"Error revoking session: {e}")
+            logger.error(
+                f"Error revoking session by JTI {session_jti} for user {whatsapp_number}: {e}"
+            )
             await db.rollback()
             return False
 
     @staticmethod
-    async def revoke_all_sessions(
-        db: AsyncSession, whatsapp_number: str, except_session_id: Optional[str] = None
-    ) -> bool:
+    async def revoke_all_sessions_for_user(
+        db: AsyncSession, whatsapp_number: str, except_jti: Optional[str] = None
+    ) -> int:
         """
-        Revoke all sessions for a user except the current one
+        Revoke all active sessions for a user, optionally excluding one by its JTI (Session.id).
+        Returns the number of sessions revoked.
         """
         try:
             query = update(Session).where(
                 Session.whatsapp_number == whatsapp_number, Session.is_active.is_(True)
             )
 
-            if except_session_id:
-                query = query.where(Session.id != except_session_id)
+            if except_jti:
+                query = query.where(Session.id != except_jti)
 
-            query = query.values(is_active=False)
+            query = query.values(is_active=False, expires_at=datetime.utcnow())
 
             result = await db.execute(query)
             await db.commit()
 
-            return result.rowcount > 0
+            return result.rowcount
 
         except Exception as e:
-            logger.error(f"Error revoking all sessions: {e}")
+            logger.error(f"Error revoking all sessions for user {whatsapp_number}: {e}")
             await db.rollback()
             return False
 

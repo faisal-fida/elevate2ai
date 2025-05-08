@@ -1,9 +1,10 @@
 from fastapi import APIRouter
-from app.api.auth import whatsapp, session
+from app.api.auth.whatsapp import (
+    router as whatsapp_auth_router,
+)
+from app.api.auth.session import router as session_router
 
-# Create auth router
-auth_router = APIRouter(prefix="/auth", tags=["auth"])
+auth_router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-# Include sub-routers
-auth_router.include_router(whatsapp.router)
-auth_router.include_router(session.router)
+auth_router.include_router(whatsapp_auth_router)
+auth_router.include_router(session_router)

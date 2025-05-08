@@ -1,7 +1,10 @@
-from sqlalchemy import Column, String, Boolean, DateTime, Text
+from sqlalchemy import Column, String, Boolean, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base import Base
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class User(Base):
@@ -11,35 +14,27 @@ class User(Base):
 
     __tablename__ = "users"
 
-    # WhatsApp number as primary key
     whatsapp_number = Column(String(20), primary_key=True, index=True)
+    hashed_password = Column(String, nullable=False)
 
-    # User profile information
-    name = Column(String(100), nullable=True)
-    email = Column(String(100), nullable=True, index=True)
-    profile_picture = Column(String(255), nullable=True)
-
-    # Account status
     is_active = Column(Boolean, default=True)
-    is_verified = Column(Boolean, default=False)
+    is_admin = Column(Boolean, default=False)
 
-    # Dashboard access
-    has_dashboard_access = Column(Boolean, default=False)
+    has_dashboard_access = Column(Boolean, default=False)  # Controlled by admin
 
-    # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
 
-    # Relationships
     sessions = relationship(
         "Session", back_populates="user", cascade="all, delete-orphan"
     )
 
-    # Additional metadata
-    metadata_json = Column(
-        Text, nullable=True
-    )  # Store additional user metadata as JSON
+    def verify_password(self, plain_password: str) -> bool:
+        return pwd_context.verify(plain_password, self.hashed_password)
+
+    def set_password(self, plain_password: str):
+        self.hashed_password = pwd_context.hash(plain_password)
 
     def __repr__(self):
         return f"<User whatsapp_number={self.whatsapp_number}>"

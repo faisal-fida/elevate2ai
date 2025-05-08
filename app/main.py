@@ -3,21 +3,45 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.params import Query
 from contextlib import asynccontextmanager
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.api.webhook import verify_webhook, handle_message
 from app.api.auth.router import auth_router
 from app.middleware.auth import CustomJWTAuthMiddleware
-from app.db.base import Base, engine
+from app.db.base import Base, engine, get_db
+from app.services.auth.whatsapp import AuthService
+from app.services.common.logging import setup_logger
+
+logger = setup_logger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create database tables on startup
+    logger.info("Creating database tables...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    logger.info("Database tables created.")
+
+    logger.info("Ensuring admin user exists...")
+    async_db_session_gen = get_db()
+
+    try:
+        db: AsyncSession = await async_db_session_gen.__anext__()  # Get a session
+        await AuthService.ensure_admin_exists(db)
+        logger.info("Admin user check complete.")
+    except StopAsyncIteration:
+        logger.error("Failed to get DB session for admin user creation during startup.")
+    except Exception as e:
+        logger.error(f"Error during admin user creation at startup: {e}")
+    finally:
+        try:
+            await async_db_session_gen.aclose()
+        except Exception:
+            pass
+
     yield
-    # (shutdown logic can go here if needed)
+    logger.info("Application shutdown.")
 
 
 app = FastAPI(
@@ -26,7 +50,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -36,7 +59,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add JWT authentication middleware with excluded paths
 app.add_middleware(
     CustomJWTAuthMiddleware,
     auto_error=True,
@@ -46,15 +68,13 @@ app.add_middleware(
         r"^/openapi.json$",
         r"^/redoc.*$",
         r"^/webhook.*$",
-        r"^/api/auth/whatsapp/authenticate$",
-        r"^/api/auth/whatsapp/verify/.*$",
-        r"^/api/auth/session/token$",
+        r"^/api/auth/register$",
+        r"^/api/auth/login$",
         r"^/api/auth/session/refresh$",
         r"^/favicon\\.ico$",
     ],
 )
 
-# Include routers
 app.include_router(auth_router, prefix="/api")
 
 
