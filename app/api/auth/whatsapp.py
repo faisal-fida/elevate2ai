@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.base import get_db
+from app.db import get_db
 from app.services.auth.whatsapp import AuthService  # Renamed service
 from app.services.auth.security import verify_token
 from app.services.common.logging import setup_logger

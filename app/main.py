@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.api.webhook import verify_webhook, handle_message
 from app.api.auth.router import auth_router
-from app.middleware.auth import CustomJWTAuthMiddleware
-from app.db.base import Base, engine, get_db
+from app.middleware import CustomJWTAuthMiddleware
+from app.db import Base, engine, get_db
 from app.services.auth.whatsapp import AuthService
 from app.services.common.logging import setup_logger
 

@@ -5,3 +5,4 @@ __pycache__/
 venv/
 .venv/
 *.db
+.ruff_cache

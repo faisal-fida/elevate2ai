@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, ForeignKey, DateTime, Boolean, JSON, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
 from app.config import settings
-from app.db.base import Base
+from app.db import Base
 import uuid
 
 
