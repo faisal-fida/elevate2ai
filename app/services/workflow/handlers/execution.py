@@ -36,42 +36,70 @@ class ExecutionHandler(BaseHandler):
             {"id": "no_images", "title": "No, caption only"},
         ]
 
-        await self.client.send_interactive_buttons(
-            header_text="Image Selection",
-            body_text=MESSAGES["image_inclusion_prompt"],
-            buttons=buttons,
-            phone_number=client_id,
-        )
+        self.logger.info(f"Sending image inclusion prompt to {client_id}")
+
+        try:
+            await self.client.send_interactive_buttons(
+                header_text="Image Selection",
+                body_text=MESSAGES["image_inclusion_prompt"],
+                buttons=buttons,
+                phone_number=client_id,
+            )
+            self.logger.info(f"Successfully sent image inclusion prompt to {client_id}")
+        except Exception as e:
+            self.logger.error(f"Error sending image inclusion prompt: {str(e)}")
+            # Fallback to simple text message
+            await self.send_message(
+                client_id,
+                f"{MESSAGES['image_inclusion_prompt']} Reply with 'yes' to include images or 'no' for caption only.",
+            )
 
     async def handle_image_decision(self, client_id: str, message: str) -> None:
         """Handle user's decision about including images"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
-        if message in ["yes_images", "yes"]:
+        self.logger.info(f"Handling image decision for {client_id}, message: {message}")
+
+        # Handle both button responses and text responses
+        if message in ["yes_images", "yes", "y", "yes include images"]:
+            self.logger.info(f"User {client_id} chose to include images")
             context.include_images = True
             self.state_manager.update_context(client_id, vars(context))
 
             # Continue with generating images
             await self.generate_platform_images(client_id)
-        elif message in ["no_images", "no"]:
+        elif message in ["no_images", "no", "n", "no caption only"]:
+            self.logger.info(f"User {client_id} chose not to include images")
             context.include_images = False
             self.state_manager.update_context(client_id, vars(context))
 
             # Skip image generation and proceed to posting with caption only
             await self.post_to_platforms(client_id)
         else:
-            await self.send_message(client_id, "Please select one of the options.")
+            self.logger.warning(f"Unrecognized response from {client_id}: {message}")
+            await self.send_message(
+                client_id,
+                "Please reply with 'yes' to include images or 'no' for caption only.",
+            )
             await self.ask_include_images(client_id)
 
     async def handle(self, client_id: str, message: str) -> None:
         """Handle post execution"""
+        self.logger.info(
+            f"ExecutionHandler.handle called for {client_id} with message: {message}"
+        )
+
         context = WorkflowContext(**self.state_manager.get_context(client_id))
+        self.logger.info(
+            f"Context for {client_id}: waiting_for_image_decision = {getattr(context, 'waiting_for_image_decision', 'not set')}"
+        )
 
         # Check if we're waiting for image inclusion decision
         if (
             hasattr(context, "waiting_for_image_decision")
             and context.waiting_for_image_decision
         ):
+            self.logger.info(f"Processing image decision from {client_id}")
             await self.handle_image_decision(client_id, message)
             return
 
@@ -81,17 +109,21 @@ class ExecutionHandler(BaseHandler):
 
         # Set the flag to indicate we're waiting for user's decision
         context.waiting_for_image_decision = True
+        self.logger.info(f"Setting waiting_for_image_decision=True for {client_id}")
         self.state_manager.update_context(client_id, vars(context))
 
         # Ask user if they want to include images
+        self.logger.info(f"Asking user {client_id} about image inclusion")
         await self.ask_include_images(client_id)
 
     async def generate_platform_images(self, client_id: str) -> None:
         """Generate images for each platform"""
+        self.logger.info(f"Starting generate_platform_images for {client_id}")
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
         # Clear the waiting flag
         context.waiting_for_image_decision = False
+        self.logger.info(f"Setting waiting_for_image_decision=False for {client_id}")
         self.state_manager.update_context(client_id, vars(context))
 
         # Generate platform-specific images using Switchboard Canvas
@@ -156,7 +188,12 @@ class ExecutionHandler(BaseHandler):
 
     async def post_to_platforms(self, client_id: str) -> None:
         """Post content to selected platforms"""
+        self.logger.info(f"Starting post_to_platforms for {client_id}")
         context = WorkflowContext(**self.state_manager.get_context(client_id))
+
+        # Check if this is a caption-only post
+        has_images = getattr(context, "include_images", True)
+        self.logger.info(f"Posting for {client_id} with images: {has_images}")
 
         # Now post to each platform with or without images based on user's choice
         await self.send_message(client_id, "Posting to selected platforms...")
