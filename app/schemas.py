@@ -30,7 +30,7 @@ class UserInDB(BaseModel):
     has_dashboard_access: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class UserResponse(UserInDB):

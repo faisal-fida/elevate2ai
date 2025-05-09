@@ -11,9 +11,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["dev", "prod"] = Field(default="dev", env="ENVIRONMENT")
 
     # Database Configuration
-    DATABASE_URL: str = Field(
-        default="sqlite+aiosqlite:///./app.db", env="DATABASE_URL"
-    )
+    DATABASE_PATH: str = Field(default="./app.db", env="DATABASE_PATH")
     SQL_ECHO: bool = Field(default=False, env="SQL_ECHO")
 
     # JWT Configuration

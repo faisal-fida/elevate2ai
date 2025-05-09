@@ -2,10 +2,15 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import URL
 from app.config import settings
 
 # Create async engine
-engine = create_async_engine(settings.DATABASE_URL, echo=settings.SQL_ECHO, future=True)
+engine = create_async_engine(
+    URL.create(drivername="sqlite+aiosqlite", database=settings.DATABASE_PATH),
+    echo=settings.SQL_ECHO,
+    future=True,
+)
 
 # Create async session factory
 async_session_factory = sessionmaker(

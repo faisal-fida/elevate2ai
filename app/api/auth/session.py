@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from app.schemas import Token as TokenResponseSchema
 from app.services.auth.security import verify_token
 
-router = APIRouter(prefix="/session", tags=["Session Management"])
+router = APIRouter(prefix="/session")
 
 logger = setup_logger(__name__)
 

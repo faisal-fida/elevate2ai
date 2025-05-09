@@ -1,4 +1,4 @@
-import requests
+import httpx
 from typing import Dict, List, Any
 from app.config import settings
 from app.constants import SOCIAL_MEDIA_PLATFORMS
@@ -16,19 +16,30 @@ class SwitchboardCanvas:
             "Content-Type": "application/json",
         }
         self.logger = setup_logger(__name__)
+        # Create a single client instance for reuse
+        self.client = httpx.Client(
+            timeout=30.0, headers=self.headers, verify=True, http2=True
+        )
+
+    def __del__(self):
+        """Ensure client is closed when the instance is destroyed"""
+        self.client.close()
 
     def get_template_elements(self, template: str) -> List[Dict[str, Any]]:
         """Fetches the elements defined in a given template."""
         url = f"{self.base_url}/template/{template}/elements"
         try:
             self.logger.info(f"Fetching template elements for {template}")
-            response = requests.get(url, headers=self.headers)
+            response = self.client.get(url)
             response.raise_for_status()
             data = response.json()
             return data.get("fields", [])
+        except httpx.HTTPError as e:
+            self.logger.error(f"HTTP error fetching template elements: {e}")
+            raise
         except Exception as e:
             self.logger.error(f"Error fetching template elements: {e}")
-            raise e
+            raise
 
     def get_payload(
         self,
@@ -70,10 +81,13 @@ class SwitchboardCanvas:
         """Generate an image using the Switchboard Canvas API"""
         try:
             self.logger.info("Generating image with Switchboard Canvas")
-            response = requests.post(self.base_url, headers=self.headers, json=payload)
+            response = self.client.post(self.base_url, json=payload)
             self.logger.debug(f"Switchboard API response: {response.text}")
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPError as e:
+            self.logger.error(f"HTTP error generating image: {e}")
+            raise
         except Exception as e:
             self.logger.error(f"Error generating image: {e}")
             raise

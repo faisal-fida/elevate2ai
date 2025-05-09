@@ -3,4 +3,5 @@
 /migrations
 __pycache__/
 venv/
+.venv/
 *.db

@@ -9,7 +9,7 @@ from typing import Dict, Any, List
 from app.schemas import UserCreate, UserResponse, AdminUserUpdateAccess, UserLogin
 from app.models.user import User
 
-router = APIRouter(tags=["authentication"])
+router = APIRouter()
 
 logger = setup_logger(__name__)
 
