@@ -4,7 +4,7 @@ from app.services.messaging.state_manager import WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
 from app.constants import MESSAGES
 from app.services.common.types import WorkflowContext
-from app.services.content.canvas.switchboard import create_image
+from app.services.content.switchboard import create_image
 
 
 class ExecutionHandler(BaseHandler):

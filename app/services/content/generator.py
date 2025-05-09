@@ -1,7 +1,7 @@
 from typing import Tuple, List
 from app.services.common.logging import setup_logger
-from app.services.content.ai.openai_service import AsyncOpenAIService
-from app.services.content.media.image_service import ImageService
+from .openai_service import AsyncOpenAIService
+from .image_service import ImageService
 from app.constants import OPENAI_PROMPTS
 
 

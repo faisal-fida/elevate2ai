@@ -17,13 +17,18 @@ class SwitchboardCanvas:
         }
         self.logger = setup_logger(__name__)
         # Create a single client instance for reuse
-        self.client = httpx.Client(
-            timeout=30.0, headers=self.headers, verify=True, http2=True
-        )
+        self.client = httpx.Client(timeout=30.0, headers=self.headers, verify=True)
 
     def __del__(self):
         """Ensure client is closed when the instance is destroyed"""
-        self.client.close()
+        if self.client:
+            self.logger.debug("Closing HTTP client")
+            try:
+                self.client.close()
+            except Exception as e:
+                self.logger.error(f"Error closing HTTP client: {e}")
+        else:
+            self.logger.debug("Client already closed or not initialized")
 
     def get_template_elements(self, template: str) -> List[Dict[str, Any]]:
         """Fetches the elements defined in a given template."""

@@ -1,3 +1,4 @@
+import traceback
 from typing import Dict, Any
 from fastapi import APIRouter, Response, Query
 from app.config import settings
@@ -90,5 +91,8 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
         return {"status": "success", "message": "Message processed"}
 
     except Exception as e:
-        logger.error(f"Error processing webhook data: {e}")
+        tb_str = traceback.format_exc()
+        logger.error(
+            f"Error processing webhook data: {e}\nTraceback:\n{tb_str}\nData:\n{data}"
+        )
         return {"status": "error", "message": str(e)}
