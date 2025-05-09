@@ -20,6 +20,7 @@ MESSAGES = {
     "post_failure": "❌ Failed to post your content. Please try again.",
     "session_timeout": "⏰ Your session has timed out. Please start again by saying 'Create Post'.",
     "menu_prompt": "Type 'Menu' to restart or 'Help' for assistance.",
+    "image_inclusion_prompt": "🖼️ Would you like to include images in your post?",
 }
 
 # Social media platform image sizes and content types

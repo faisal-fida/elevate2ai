@@ -66,6 +66,12 @@ class WorkflowContext:
     )
     platform_images: Dict[str, str] = None  # Platform-specific edited images
 
+    # New fields for image inclusion feature
+    include_images: bool = True  # Default to including images
+    waiting_for_image_decision: bool = (
+        False  # Flag to track if we're waiting for user's decision
+    )
+
     def __post_init__(self):
         """Initialize default values for None fields"""
         if self.image_urls is None:
