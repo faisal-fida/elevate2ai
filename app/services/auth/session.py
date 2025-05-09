@@ -1,8 +1,8 @@
 from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import update, delete
+from sqlalchemy import update
 from app.models.session import Session
 from app.models.user import User
 from app.services.auth.security import create_access_token, create_refresh_token
@@ -87,34 +87,6 @@ class SessionService:
             return None
 
     @staticmethod
-    async def validate_session(db: AsyncSession, token: str) -> Optional[Session]:
-        """
-        Validate a session token
-        """
-        try:
-            result = await db.execute(
-                select(Session).where(
-                    Session.token == token,
-                    Session.is_active.is_(True),
-                    Session.expires_at > datetime.utcnow(),
-                )
-            )
-            session = result.scalars().first()
-
-            if not session:
-                return None
-
-            # Update last activity
-            session.last_activity = datetime.utcnow()
-            await db.commit()
-
-            return session
-
-        except Exception as e:
-            logger.error(f"Error validating session: {e}")
-            return None
-
-    @staticmethod
     async def refresh_session(
         db: AsyncSession, refresh_token: str
     ) -> Optional[Dict[str, Any]]:
@@ -170,7 +142,7 @@ class SessionService:
                     Session.whatsapp_number == whatsapp_number,
                     Session.is_active,
                 )
-                .values(is_active=False, expires_at=datetime.now(datetime.timezone.utc))
+                .values(is_active=False, expires_at=datetime.now(timezone.utc))
             )
             await db.commit()
             return result.rowcount > 0
@@ -180,49 +152,3 @@ class SessionService:
             )
             await db.rollback()
             return False
-
-    @staticmethod
-    async def revoke_all_sessions_for_user(
-        db: AsyncSession, whatsapp_number: str, except_jti: Optional[str] = None
-    ) -> int:
-        """
-        Revoke all active sessions for a user, optionally excluding one by its JTI (Session.id).
-        Returns the number of sessions revoked.
-        """
-        try:
-            query = update(Session).where(
-                Session.whatsapp_number == whatsapp_number, Session.is_active.is_(True)
-            )
-
-            if except_jti:
-                query = query.where(Session.id != except_jti)
-
-            query = query.values(is_active=False, expires_at=datetime.utcnow())
-
-            result = await db.execute(query)
-            await db.commit()
-
-            return result.rowcount
-
-        except Exception as e:
-            logger.error(f"Error revoking all sessions for user {whatsapp_number}: {e}")
-            await db.rollback()
-            return False
-
-    @staticmethod
-    async def cleanup_expired_sessions(db: AsyncSession) -> int:
-        """
-        Clean up expired sessions
-        """
-        try:
-            result = await db.execute(
-                delete(Session).where(Session.expires_at < datetime.utcnow())
-            )
-            await db.commit()
-
-            return result.rowcount
-
-        except Exception as e:
-            logger.error(f"Error cleaning up expired sessions: {e}")
-            await db.rollback()
-            return 0
