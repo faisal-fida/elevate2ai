@@ -17,6 +17,7 @@ WorkflowStateType = Literal[
     "caption_input",
     "schedule_selection",
     "confirmation",
+    "image_inclusion_decision",
     "post_execution",
 ]
 

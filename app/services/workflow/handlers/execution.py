@@ -13,9 +13,37 @@ class ExecutionHandler(BaseHandler):
     async def handle_confirmation(self, client_id: str, message: str) -> None:
         """Handle confirmation"""
         if message in ["yes", "y"]:
-            # Move to post execution
-            self.state_manager.set_state(client_id, WorkflowState.POST_EXECUTION)
-            await self.handle(client_id, "")
+            self.logger.info(
+                f"User {client_id} confirmed the post, asking about image inclusion"
+            )
+
+            # Instead of moving directly to POST_EXECUTION, we'll ask about image inclusion
+            context = WorkflowContext(**self.state_manager.get_context(client_id))
+
+            # Initialize platform-specific images dictionary if not exists
+            if (
+                not hasattr(context, "platform_images")
+                or context.platform_images is None
+            ):
+                context.platform_images = {}
+
+            # Set the flag to indicate we're waiting for user's decision
+            context.waiting_for_image_decision = True
+            self.logger.info(f"Setting waiting_for_image_decision=True for {client_id}")
+
+            # Set the state to IMAGE_INCLUSION_DECISION
+            self.state_manager.set_state(
+                client_id, WorkflowState.IMAGE_INCLUSION_DECISION
+            )
+            self.logger.info(
+                f"Setting state to IMAGE_INCLUSION_DECISION for {client_id}"
+            )
+
+            self.state_manager.update_context(client_id, vars(context))
+
+            # Ask user if they want to include images
+            self.logger.info(f"Asking user {client_id} about image inclusion")
+            await self.ask_include_images(client_id)
 
         elif message in ["no", "n"]:
             # Reset the workflow
@@ -66,12 +94,18 @@ class ExecutionHandler(BaseHandler):
             context.include_images = True
             self.state_manager.update_context(client_id, vars(context))
 
+            # Move to appropriate state for generating images
+            self.state_manager.set_state(client_id, WorkflowState.POST_EXECUTION)
+
             # Continue with generating images
             await self.generate_platform_images(client_id)
         elif message in ["no_images", "no", "n", "no caption only"]:
             self.logger.info(f"User {client_id} chose not to include images")
             context.include_images = False
             self.state_manager.update_context(client_id, vars(context))
+
+            # Move to post execution state for posting without images
+            self.state_manager.set_state(client_id, WorkflowState.POST_EXECUTION)
 
             # Skip image generation and proceed to posting with caption only
             await self.post_to_platforms(client_id)
@@ -100,6 +134,17 @@ class ExecutionHandler(BaseHandler):
             and context.waiting_for_image_decision
         ):
             self.logger.info(f"Processing image decision from {client_id}")
+            await self.handle_image_decision(client_id, message)
+            return
+
+        # Also check for yes/no responses to handle image inclusion even if the flag isn't set properly
+        if message.lower() in ["yes_images", "yes", "y", "no_images", "no", "n"]:
+            self.logger.info(
+                f"Detected image inclusion response from {client_id} without flag: {message}"
+            )
+            # Set the flag to handle the response properly
+            context.waiting_for_image_decision = True
+            self.state_manager.update_context(client_id, vars(context))
             await self.handle_image_decision(client_id, message)
             return
 
@@ -190,6 +235,9 @@ class ExecutionHandler(BaseHandler):
         """Post content to selected platforms"""
         self.logger.info(f"Starting post_to_platforms for {client_id}")
         context = WorkflowContext(**self.state_manager.get_context(client_id))
+
+        # Make sure we're in POST_EXECUTION state
+        self.state_manager.set_state(client_id, WorkflowState.POST_EXECUTION)
 
         # Check if this is a caption-only post
         has_images = getattr(context, "include_images", True)

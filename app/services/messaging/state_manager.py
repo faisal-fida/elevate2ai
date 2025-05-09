@@ -15,6 +15,7 @@ class WorkflowState(Enum):
     CAPTION_INPUT = "caption_input"
     SCHEDULE_SELECTION = "schedule_selection"
     CONFIRMATION = "confirmation"
+    IMAGE_INCLUSION_DECISION = "image_inclusion_decision"
     POST_EXECUTION = "post_execution"
 
 

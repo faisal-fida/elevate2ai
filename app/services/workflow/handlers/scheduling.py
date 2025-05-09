@@ -33,6 +33,8 @@ class SchedulingHandler(BaseHandler):
 
             # Move to confirmation
             self.state_manager.set_state(client_id, WorkflowState.CONFIRMATION)
+
+            # Send confirmation summary (which will then lead to image inclusion question)
             await self.send_confirmation_summary(client_id, context)
         else:
             await self.send_message(

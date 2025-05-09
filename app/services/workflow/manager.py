@@ -70,6 +70,7 @@ class WorkflowManager:
                     WorkflowState.CAPTION_INPUT: self.caption_handler.handle,
                     WorkflowState.SCHEDULE_SELECTION: self.scheduling_handler.handle,
                     WorkflowState.CONFIRMATION: self.execution_handler.handle_confirmation,
+                    WorkflowState.IMAGE_INCLUSION_DECISION: self.execution_handler.handle,
                     WorkflowState.POST_EXECUTION: self.execution_handler.handle,
                 }.get(current_state)
 
