@@ -36,7 +36,9 @@ class WorkflowManager:
             self.whatsapp, self.state_manager, self.content_generator
         )
         self.scheduling_handler = SchedulingHandler(self.whatsapp, self.state_manager)
-        self.execution_handler = ExecutionHandler(self.whatsapp, self.state_manager)
+        self.execution_handler = ExecutionHandler(
+            self.whatsapp, self.state_manager, self.scheduling_handler
+        )
 
     async def process_message(self, client_id: str, message: str) -> None:
         """Add an incoming message to the client's queue and ensure the processor is running."""
@@ -63,6 +65,10 @@ class WorkflowManager:
             message_text = await queue.get()  # Renamed variable for clarity
             try:
                 current_state = self.state_manager.get_state(client_id)
+                self.logger.info(
+                    f"Processing message in state {current_state.name} for {client_id}: {message_text[:20]}..."
+                )
+
                 handler = {
                     WorkflowState.INIT: self._handle_init,
                     WorkflowState.CONTENT_TYPE_SELECTION: self.content_type_selection_handler.handle,

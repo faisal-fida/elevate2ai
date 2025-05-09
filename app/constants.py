@@ -12,7 +12,7 @@ MESSAGES = {
     "content_type_selection": "👋 Now, let's create a post for your promotion. What type of content would you like to post?",
     "platform_selection_for_content": "📱 Great! For {content_type} content, you can post to these platforms. Please select one or 'All' to post to all supported platforms:",
     "caption_prompt": "✍️ Please enter a prompt to generate the social media post:",
-    "editing_confirmation": "🎨 I will edit the image and post it to the selected platforms. Should I proceed?",
+    "editing_confirmation": "🎨 I will process your content and post it to the selected platforms. Should I proceed?",
     "schedule_prompt": "🗓️ When would you like to post this content?",
     "confirmation_summary": "📋 Here's a summary of your post:\n\nContent Type: {content_type}\nPlatforms: {platforms}\nSchedule: {schedule}\nCaption: {caption}",
     "post_success": "✅ Your content has been posted successfully to {platforms}!",

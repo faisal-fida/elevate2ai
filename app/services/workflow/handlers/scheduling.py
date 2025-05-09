@@ -13,18 +13,26 @@ class SchedulingHandler(BaseHandler):
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
         if message in ["1", "2", "3", "4"]:
-            # Store the selected image
-            idx = int(message) - 1
-            if 0 <= idx < len(context.image_urls):
-                context.selected_image = context.image_urls[idx]
-                self.state_manager.update_context(client_id, vars(context))
+            # Store the selected image (only if we're including images)
+            if getattr(context, "include_images", True):
+                idx = int(message) - 1
+                if 0 <= idx < len(context.image_urls):
+                    context.selected_image = context.image_urls[idx]
+                    self.state_manager.update_context(client_id, vars(context))
 
-                # Send scheduling options
-                await self.send_scheduling_options(client_id)
+                    # Send scheduling options
+                    await self.send_scheduling_options(client_id)
+                else:
+                    await self.send_message(
+                        client_id, "Please select a valid image number (1-4)."
+                    )
             else:
+                # If we're not including images, just inform the user and continue to scheduling
                 await self.send_message(
-                    client_id, "Please select a valid image number (1-4)."
+                    client_id,
+                    "You've chosen not to include images. Let's schedule your post.",
                 )
+                await self.send_scheduling_options(client_id)
 
         elif message in ["now", "later", "tomorrow", "next week"]:
             # Store the schedule
@@ -80,8 +88,11 @@ class SchedulingHandler(BaseHandler):
             caption=context.caption,
         )
 
-        # Send the selected image with the summary
-        if context.selected_image:
+        # Check if we're including images
+        include_images = getattr(context, "include_images", True)
+
+        # Send the selected image with the summary if including images
+        if include_images and context.selected_image:
             await self.client.send_media(
                 media_items=[
                     {"type": "image", "url": context.selected_image, "caption": summary}
@@ -89,7 +100,7 @@ class SchedulingHandler(BaseHandler):
                 phone_number=client_id,
             )
         else:
-            # If no image is selected, just send the summary as a message
+            # If no image is selected or not including images, just send the summary as a message
             await self.send_message(client_id, summary)
 
         await asyncio.sleep(1)

@@ -1,49 +1,46 @@
 import asyncio
 import random
-from app.services.messaging.state_manager import WorkflowState
+from app.services.messaging.state_manager import WorkflowState, StateManager
 from app.services.workflow.handlers.base import BaseHandler
 from app.constants import MESSAGES
 from app.services.common.types import WorkflowContext
 from app.services.content.switchboard import create_image
+from app.services.messaging.client import MessagingClient
+from app.services.workflow.handlers.scheduling import SchedulingHandler
 
 
 class ExecutionHandler(BaseHandler):
     """Handler for post execution state"""
 
+    def __init__(
+        self,
+        client: MessagingClient,
+        state_manager: StateManager,
+        scheduling_handler=None,
+    ):
+        super().__init__(client, state_manager)
+        self.scheduling_handler = scheduling_handler
+
     async def handle_confirmation(self, client_id: str, message: str) -> None:
         """Handle confirmation"""
         if message in ["yes", "y"]:
             self.logger.info(
-                f"User {client_id} confirmed the post, asking about image inclusion"
+                f"User {client_id} confirmed the post, proceeding to execution"
             )
 
-            # Instead of moving directly to POST_EXECUTION, we'll ask about image inclusion
+            # Move to post execution
+            self.state_manager.set_state(client_id, WorkflowState.POST_EXECUTION)
+
+            # Get the context to check if we're including images
             context = WorkflowContext(**self.state_manager.get_context(client_id))
+            include_images = getattr(context, "include_images", True)
 
-            # Initialize platform-specific images dictionary if not exists
-            if (
-                not hasattr(context, "platform_images")
-                or context.platform_images is None
-            ):
-                context.platform_images = {}
-
-            # Set the flag to indicate we're waiting for user's decision
-            context.waiting_for_image_decision = True
-            self.logger.info(f"Setting waiting_for_image_decision=True for {client_id}")
-
-            # Set the state to IMAGE_INCLUSION_DECISION
-            self.state_manager.set_state(
-                client_id, WorkflowState.IMAGE_INCLUSION_DECISION
-            )
-            self.logger.info(
-                f"Setting state to IMAGE_INCLUSION_DECISION for {client_id}"
-            )
-
-            self.state_manager.update_context(client_id, vars(context))
-
-            # Ask user if they want to include images
-            self.logger.info(f"Asking user {client_id} about image inclusion")
-            await self.ask_include_images(client_id)
+            if include_images:
+                # If including images, generate platform-specific images
+                await self.generate_platform_images(client_id)
+            else:
+                # If not including images, skip to posting
+                await self.post_to_platforms(client_id)
 
         elif message in ["no", "n"]:
             # Reset the workflow
@@ -124,42 +121,48 @@ class ExecutionHandler(BaseHandler):
         )
 
         context = WorkflowContext(**self.state_manager.get_context(client_id))
-        self.logger.info(
-            f"Context for {client_id}: waiting_for_image_decision = {getattr(context, 'waiting_for_image_decision', 'not set')}"
-        )
 
-        # Check if we're waiting for image inclusion decision
-        if (
-            hasattr(context, "waiting_for_image_decision")
-            and context.waiting_for_image_decision
-        ):
-            self.logger.info(f"Processing image decision from {client_id}")
-            await self.handle_image_decision(client_id, message)
-            return
-
-        # Also check for yes/no responses to handle image inclusion even if the flag isn't set properly
-        if message.lower() in ["yes_images", "yes", "y", "no_images", "no", "n"]:
+        # Check if this message might be part of another state's interaction
+        if message.lower() in [
+            "1",
+            "2",
+            "3",
+            "4",
+            "now",
+            "later",
+            "tomorrow",
+            "next week",
+        ]:
             self.logger.info(
-                f"Detected image inclusion response from {client_id} without flag: {message}"
+                f"Message '{message}' appears to be for scheduling, letting scheduler handle it"
             )
-            # Set the flag to handle the response properly
-            context.waiting_for_image_decision = True
-            self.state_manager.update_context(client_id, vars(context))
-            await self.handle_image_decision(client_id, message)
-            return
+            if self.scheduling_handler is not None:
+                self.state_manager.set_state(
+                    client_id, WorkflowState.SCHEDULE_SELECTION
+                )
+                await self.scheduling_handler.handle(client_id, message)
+                return
+            else:
+                self.logger.warning(
+                    f"Scheduling message received but no scheduler available"
+                )
 
-        # Initialize platform-specific images dictionary if not exists
-        if not hasattr(context, "platform_images") or context.platform_images is None:
-            context.platform_images = {}
+        # Check if we should proceed with posting
+        if message.lower() in ["post", "continue", "yes", "y"]:
+            # Get the context to check if we're including images
+            include_images = getattr(context, "include_images", True)
 
-        # Set the flag to indicate we're waiting for user's decision
-        context.waiting_for_image_decision = True
-        self.logger.info(f"Setting waiting_for_image_decision=True for {client_id}")
-        self.state_manager.update_context(client_id, vars(context))
-
-        # Ask user if they want to include images
-        self.logger.info(f"Asking user {client_id} about image inclusion")
-        await self.ask_include_images(client_id)
+            if include_images:
+                # If including images, generate platform-specific images
+                await self.generate_platform_images(client_id)
+            else:
+                # If not including images, skip to posting
+                await self.post_to_platforms(client_id)
+        else:
+            await self.send_message(
+                client_id,
+                "Type 'post' or 'continue' to proceed with posting your content.",
+            )
 
     async def generate_platform_images(self, client_id: str) -> None:
         """Generate images for each platform"""
