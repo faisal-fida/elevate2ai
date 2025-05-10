@@ -6,7 +6,6 @@ from app.constants import MESSAGES
 from app.services.common.types import WorkflowContext
 from app.services.content.switchboard import create_image
 from app.services.messaging.client import MessagingClient
-from app.services.workflow.handlers.scheduling import SchedulingHandler
 
 
 class ExecutionHandler(BaseHandler):
@@ -144,8 +143,13 @@ class ExecutionHandler(BaseHandler):
                 return
             else:
                 self.logger.warning(
-                    f"Scheduling message received but no scheduler available"
+                    f"No scheduling handler available for {client_id}, unable to process message: {message}"
                 )
+                await self.send_message(
+                    client_id,
+                    "It seems like you're trying to schedule a post. Please try again later.",
+                )
+                return
 
         # Check if we should proceed with posting
         if message.lower() in ["post", "continue", "yes", "y"]:

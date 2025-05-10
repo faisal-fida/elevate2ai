@@ -116,6 +116,9 @@ class CaptionHandler(BaseHandler):
                 client_id,
                 f"{MESSAGES['image_inclusion_prompt']} Reply with 'yes' to include images or 'no' for caption only.",
             )
+            self.logger.error(
+                f"Failed to send interactive buttons for image inclusion: {e}"
+            )
 
     async def show_images_for_selection(self, client_id: str) -> None:
         """Show images for the user to select from"""
