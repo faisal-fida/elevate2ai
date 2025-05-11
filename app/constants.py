@@ -18,7 +18,7 @@ MESSAGES = {
     "post_success": "✅ Your content has been posted successfully to {platforms}!",
     "post_partial_success": "⚠️ Your content was posted to some platforms: {success_platforms}\nFailed platforms: {failed_platforms}",
     "post_failure": "❌ Failed to post your content. Please try again.",
-    "session_timeout": "⏰ Your session has timed out. Please start again by saying 'Create Post'.",
+    "session_timeout": "⏰ Your session has timed out. Please start again by saying 'Hi'.",
     "menu_prompt": "Type 'Menu' to restart or 'Help' for assistance.",
     "image_inclusion_prompt": "🖼️ Would you like to include images in your post?",
 }

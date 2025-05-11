@@ -45,7 +45,7 @@ class ExecutionHandler(BaseHandler):
             # Reset the workflow
             self.state_manager.reset_client(client_id)
             await self.send_message(
-                client_id, "Let's start over. Type 'Create Post' when you're ready."
+                client_id, "Let's start over. Type 'Hi' when you're ready."
             )
 
         else:
@@ -301,7 +301,7 @@ class ExecutionHandler(BaseHandler):
         # Reset the workflow
         self.state_manager.reset_client(client_id)
         await self.send_message(
-            client_id, "Type 'Create Post' when you're ready to create another post."
+            client_id, "Type 'Hi' when you're ready to create another post."
         )
 
     async def send_confirmation_summary(
