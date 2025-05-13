@@ -384,23 +384,43 @@ class CaptionHandler(BaseHandler):
     async def handle_media_upload(self, client_id: str, message: str) -> None:
         """Handle uploaded media"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
+        media_type = "video" if context.is_video_content else "image"
 
-        # In a real implementation, this would process the uploaded media
-        # For now, assume the message contains a URL to the uploaded media
-        if context.is_video_content:
-            context.selected_video = message
-            context.video_background = message  # For template data
+        # Extract media URL from message
+        if message.startswith(f"[{media_type}]") or message.startswith("[media]"):
+            # This is a placeholder in our logs, we need to extract the real URL
+            # In real implementation, this would come from the message object's media URL
+            self.logger.warning(f"Received {media_type} placeholder without actual URL")
+            await self.send_message(
+                client_id,
+                f"I couldn't process your {media_type}. Please upload it again or send it as a URL.",
+            )
+            return
+        elif message.startswith("http") and ("://" in message):
+            # This is a direct URL
+            if context.is_video_content:
+                context.selected_video = message
+                context.video_background = message  # For template data
+                self.logger.info(f"Video URL saved: {message[:50]}...")
+            else:
+                context.selected_image = message
+                self.logger.info(f"Image URL saved: {message[:50]}...")
+
+            self.state_manager.update_context(client_id, vars(context))
+            await self.send_message(
+                client_id, f"{media_type.capitalize()} uploaded successfully!"
+            )
+
+            # Move to scheduling
+            self.state_manager.set_state(client_id, WorkflowState.SCHEDULE_SELECTION)
+            await self.send_scheduling_options(client_id)
         else:
-            context.selected_image = message
-
-        self.state_manager.update_context(client_id, vars(context))
-
-        media_type = "Video" if context.is_video_content else "Image"
-        await self.send_message(client_id, f"{media_type} uploaded successfully!")
-
-        # Move to scheduling
-        self.state_manager.set_state(client_id, WorkflowState.SCHEDULE_SELECTION)
-        await self.send_scheduling_options(client_id)
+            # Invalid format
+            await self.send_message(
+                client_id,
+                f"Please send your {media_type} as an attachment or as a direct URL.",
+            )
+            return
 
     async def show_images_for_selection(self, client_id: str) -> None:
         """Show images for the user to select from"""
@@ -522,3 +542,37 @@ class CaptionHandler(BaseHandler):
         """Send a media gallery to the client"""
         for item in media_items:
             await self.client.send_media(media_items=[item], phone_number=client_id)
+
+    async def handle_event_image_input(self, client_id: str, message: str) -> None:
+        """Handle event image input"""
+        context = WorkflowContext(**self.state_manager.get_context(client_id))
+
+        # Extract the media URL from the message
+        # WhatsApp messages with media come as formatted message with a URL
+        # Format can be [image] or a URL directly
+        if message.startswith("[image]") or message.startswith("[media]"):
+            # This is a placeholder in our logs, we need to extract the real URL
+            # In real implementation, this would come from the message object's media URL
+            self.logger.warning("Received media placeholder without actual URL")
+            await self.send_message(
+                client_id,
+                "I couldn't process your image. Please upload it again or send it as a URL.",
+            )
+            return
+        elif message.startswith("http") and ("://" in message):
+            # This is a direct URL
+            context.event_image = message
+            self.state_manager.update_context(client_id, vars(context))
+            self.logger.info(f"Event image URL saved: {message[:50]}...")
+
+            await self.send_message(client_id, "Great! Event image saved.")
+
+            # Return to caption input state and continue processing
+            self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
+            await self.handle(client_id, context.original_text)
+        else:
+            # Invalid format
+            await self.send_message(
+                client_id, "Please send your image as an attachment or as a direct URL."
+            )
+            return

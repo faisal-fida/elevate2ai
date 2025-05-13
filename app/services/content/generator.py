@@ -1,7 +1,7 @@
 from typing import Tuple, List, Dict, Any, Optional
 from app.services.common.logging import setup_logger
 from .openai_service import AsyncOpenAIService
-from .image_service import ImageService
+from .image_service import MediaService
 from app.constants import OPENAI_PROMPTS, TEMPLATE_CONFIG
 
 
@@ -10,7 +10,7 @@ class ContentGenerator:
 
     def __init__(self):
         self.openai_service = AsyncOpenAIService()
-        self.image_service = ImageService()
+        self.media_service = MediaService()
         self.logger = setup_logger(__name__)
 
     async def generate_content(self, promo_text: str) -> Tuple[str, List[str]]:
@@ -56,7 +56,7 @@ class ContentGenerator:
 
             # Search for images
             self.logger.info(f"Fetching images with query: {promo_text_search}")
-            image_results = await self.image_service.search_images(
+            image_results = await self.media_service.search_images(
                 promo_text_search, limit=4
             )
             if not image_results or len(image_results) < 4:
@@ -184,7 +184,7 @@ class ContentGenerator:
             elif "main_image" in required_keys and not is_video_content:
                 # Search for images
                 self.logger.info(f"Searching images with query: {search_query}")
-                media_urls = await self.image_service.search_images(
+                media_urls = await self.media_service.search_images(
                     search_query, limit=4
                 )
 
@@ -200,17 +200,23 @@ class ContentGenerator:
 
             # Handle video content
             elif is_video_content:
-                # In a real implementation, we would have a video service similar to image_service
-                # For now, we'll use mock video URLs
-                self.logger.info(f"Searching for video with query: {search_query}")
+                # Search for videos using our VideoService
+                self.logger.info(f"Searching for videos with query: {search_query}")
+                media_urls = await self.media_service.search_videos(
+                    search_query, limit=4
+                )
 
-                # Mock video URLs - in a real implementation, this would call a video API
-                media_urls = [
-                    "https://example.com/mock-video1.mp4",
-                    "https://example.com/mock-video2.mp4",
-                    "https://example.com/mock-video3.mp4",
-                    "https://example.com/mock-video4.mp4",
-                ]
+                if not media_urls:
+                    self.logger.warning(
+                        f"No videos found for {search_query}, using default"
+                    )
+                    # Fallback to mock video URLs
+                    media_urls = [
+                        "https://example.com/mock-video1.mp4",
+                        "https://example.com/mock-video2.mp4",
+                        "https://example.com/mock-video3.mp4",
+                        "https://example.com/mock-video4.mp4",
+                    ]
 
                 # Set video_background in template data
                 if media_urls:
