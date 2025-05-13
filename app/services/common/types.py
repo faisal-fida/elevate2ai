@@ -19,7 +19,19 @@ WorkflowStateType = Literal[
     "confirmation",
     "image_inclusion_decision",
     "post_execution",
+    # New states for template-specific input collection
+    "waiting_for_destination",
+    "waiting_for_event_name",
+    "waiting_for_price",
+    "waiting_for_event_image",
+    # Media selection states
+    "media_source_selection",
+    "waiting_for_media_upload",
+    "video_selection",
 ]
+
+# Media source options
+MediaSourceType = Literal["upload", "search"]
 
 
 class MediaItem(TypedDict):
@@ -87,6 +99,18 @@ class WorkflowContext:
     video_background: str = ""  # For video-based templates
     logo_url: str = ""  # Client's logo
 
+    # Media selection and upload tracking
+    media_source: MediaSourceType = "search"  # Default to search (vs upload)
+    waiting_for_media_upload: bool = False  # Flag for tracking media upload
+    is_video_content: bool = False  # Flag for tracking if we're working with video
+    video_urls: List[str] = None  # URLs of video backgrounds
+    selected_video: str = ""  # Selected video URL
+    media_prompts: Dict[str, str] = None  # Custom prompts for media requests
+    needs_destination_name: bool = False  # Flag for needing destination name
+    needs_event_name: bool = False  # Flag for needing event name
+    needs_price_text: bool = False  # Flag for needing price text
+    needs_event_image: bool = False  # Flag for needing event image
+
     def __post_init__(self):
         """Initialize default values for None fields"""
         if self.image_urls is None:
@@ -107,3 +131,7 @@ class WorkflowContext:
             self.template_data = {}
         if self.validation_errors is None:
             self.validation_errors = []
+        if self.video_urls is None:
+            self.video_urls = []
+        if self.media_prompts is None:
+            self.media_prompts = {}

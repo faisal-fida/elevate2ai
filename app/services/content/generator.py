@@ -83,7 +83,7 @@ class ContentGenerator:
             user_inputs: Dictionary containing user-provided inputs like destination_name
 
         Returns:
-            Tuple of (caption, image_urls, template_data)
+            Tuple of (caption, media_urls, template_data)
         """
         try:
             # Get template details from TEMPLATE_CONFIG
@@ -138,54 +138,81 @@ class ContentGenerator:
             context["caption"] = caption
             template_data["caption_text"] = caption
 
-            # Generate image search query based on template type and context
-            search_query = await self.openai_service.generate_image_search_query(
-                template_type=template_type, context=context
-            )
+            # Determine if this is a video-based template
+            is_video_content = "video_background" in required_keys
+
+            # Generate appropriate search query based on template type and context
+            if is_video_content:
+                search_query = f"{template_type} background video"
+                if template_type == "destination" and "destination_name" in context:
+                    search_query = (
+                        f"{context['destination_name']} travel video background"
+                    )
+                elif template_type == "reels":
+                    search_query = "dynamic background video"
+            else:
+                search_query = await self.openai_service.generate_image_search_query(
+                    template_type=template_type, context=context
+                )
 
             if not search_query:
                 search_query = user_inputs.get(
                     "destination_name", user_inputs.get("event_name", template_type)
                 )
 
-            # Search for images based on required media types
-            image_urls = []
-            if "main_image" in required_keys or "event_image" in required_keys:
+            # Initialize media URLs list
+            media_urls = []
+
+            # Handle event_image if provided (client upload)
+            if "event_image" in required_keys and "event_image" in user_inputs:
+                # Use the uploaded event image directly
+                event_image = user_inputs.get("event_image")
+                if event_image:
+                    media_urls = [event_image]
+                    template_data["event_image"] = event_image
+
+            # Handle media search based on required_keys
+            elif "main_image" in required_keys:
+                # Search for images
                 self.logger.info(f"Searching images with query: {search_query}")
-                image_urls = await self.image_service.search_images(
+                media_urls = await self.image_service.search_images(
                     search_query, limit=4
                 )
 
-                if not image_urls:
+                if not media_urls:
                     self.logger.warning(
                         f"No images found for {search_query}, using default"
                     )
-                    image_urls = ["https://example.com/mock-image.jpg"] * 4
+                    media_urls = ["https://example.com/mock-image.jpg"] * 4
 
-            # Add video background if needed
-            if "video_background" in required_keys:
-                # For video-based templates, we'd typically need different search terms
-                video_search = f"{search_query} video background"
-                self.logger.info(
-                    f"Searching video backgrounds with query: {video_search}"
-                )
-                # In a real implementation, we would search for videos
-                # For now, we'll use the image_service but this would be replaced
-                template_data["video_background"] = "https://example.com/mock-video.mp4"
+                # Set main_image in template data
+                if media_urls:
+                    template_data["main_image"] = media_urls[0]
+
+            # Handle video content
+            elif "video_background" in required_keys:
+                # In a real implementation, we would have a video service similar to image_service
+                # For now, we'll use mock video URLs
+                self.logger.info(f"Searching for video with query: {search_query}")
+
+                # Mock video URLs - in a real implementation, this would call a video API
+                media_urls = [
+                    "https://example.com/mock-video1.mp4",
+                    "https://example.com/mock-video2.mp4",
+                    "https://example.com/mock-video3.mp4",
+                    "https://example.com/mock-video4.mp4",
+                ]
+
+                # Set video_background in template data
+                if media_urls:
+                    template_data["video_background"] = media_urls[0]
 
             # Create full template data with all required fields
             for key in required_keys:
-                if key == "main_image" and image_urls:
-                    template_data[key] = image_urls[0]
-                elif key == "event_image" and "event_image" in user_inputs:
-                    # User-uploaded event images should be used as-is
-                    template_data[key] = user_inputs.get("event_image")
-                elif key == "caption_text" and caption:
-                    template_data[key] = caption
-                elif key in user_inputs:
+                if key not in template_data and key in user_inputs:
                     template_data[key] = user_inputs[key]
 
-            return caption, image_urls, template_data
+            return caption, media_urls, template_data
 
         except ValueError as ve:
             # Re-raise validation errors

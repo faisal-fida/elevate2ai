@@ -34,16 +34,19 @@ class ExecutionHandler(BaseHandler):
             # Move to post execution
             self.state_manager.set_state(client_id, WorkflowState.POST_EXECUTION)
 
-            # Get the context to check if we're including images
+            # Get the context to check content type
             context = WorkflowContext(**self.state_manager.get_context(client_id))
-            include_images = getattr(context, "include_images", True)
 
-            if include_images:
-                # If including images, generate platform-specific images
-                await self.generate_platform_images(client_id)
+            # Determine if this is video-based content
+            is_video_content = False
+            if hasattr(context, "is_video_content"):
+                is_video_content = context.is_video_content
+
+            # Generate platform-specific media (images or videos)
+            if is_video_content:
+                await self.generate_platform_videos(client_id)
             else:
-                # If not including images, skip to posting
-                await self.post_to_platforms(client_id)
+                await self.generate_platform_images(client_id)
 
         elif message in ["no", "n"]:
             # Reset the workflow
@@ -287,6 +290,120 @@ class ExecutionHandler(BaseHandler):
             # Try to continue with posting anyway
             await self.post_to_platforms(client_id)
 
+    async def generate_platform_videos(self, client_id: str) -> None:
+        """Generate videos for each platform"""
+        self.logger.info(f"Starting generate_platform_videos for {client_id}")
+        context = WorkflowContext(**self.state_manager.get_context(client_id))
+
+        # Generate platform-specific videos using Switchboard Canvas
+        await self.send_message(client_id, "Editing videos for each platform...")
+
+        try:
+            for platform in context.selected_platforms:
+                # Get the content type for this platform
+                content_type = context.content_types.get(
+                    platform, context.selected_content_type
+                )
+                self.logger.info(
+                    f"Generating video for {platform} with content type {content_type}"
+                )
+
+                try:
+                    # Prepare template data
+                    template_data = {
+                        "caption_text": context.caption,
+                    }
+
+                    # Add video background if available
+                    if context.selected_video:
+                        template_data["video_background"] = context.selected_video
+
+                    # Add context-specific data
+                    if (
+                        hasattr(context, "destination_name")
+                        and context.destination_name
+                    ):
+                        template_data["destination_name"] = context.destination_name
+
+                    if hasattr(context, "event_name") and context.event_name:
+                        template_data["event_name"] = context.event_name
+
+                    if hasattr(context, "price_text") and context.price_text:
+                        template_data["price_text"] = context.price_text
+
+                    # Validate inputs for this template
+                    template_id = f"{platform}_{client_id}_{content_type}"
+                    is_valid, error_message, validated_data = validate_template_inputs(
+                        template_id, template_data
+                    )
+
+                    if not is_valid:
+                        self.logger.warning(f"Invalid template data: {error_message}")
+                        await self.send_message(
+                            client_id,
+                            f"Could not generate content for {platform}: {error_message}",
+                        )
+                        continue
+
+                    # Build final template payload
+                    template_payload = build_template_payload(
+                        template_id, validated_data
+                    )
+
+                    # Create video with Switchboard
+                    video_response = create_image(  # Still uses create_image function even for videos
+                        client_id=client_id,
+                        template_data=template_payload,
+                        platform=platform,
+                        post_type=content_type,
+                    )
+
+                    if video_response and "sizes" in video_response:
+                        context.platform_images[platform] = video_response["sizes"][0][
+                            "url"
+                        ]
+                        self.logger.info(f"Successfully generated video for {platform}")
+                    else:
+                        self.logger.warning(f"No video URL returned for {platform}")
+                        context.platform_images[platform] = context.selected_video
+
+                except ValueError as ve:
+                    self.logger.error(f"Template validation error for {platform}: {ve}")
+                    await self.send_message(
+                        client_id, f"Error with template data for {platform}: {ve}"
+                    )
+                    if context.selected_video:
+                        context.platform_images[platform] = context.selected_video
+                except Exception as e:
+                    self.logger.error(
+                        f"Error generating video for {platform}: {str(e)}"
+                    )
+                    if context.selected_video:
+                        context.platform_images[platform] = context.selected_video
+
+            # Update context with generated videos
+            self.state_manager.update_context(client_id, vars(context))
+
+            await self.send_message(
+                client_id, "Here are the edited videos for each platform:"
+            )
+            for platform, video_url in context.platform_images.items():
+                await self.client.send_media(
+                    media_items=[{"type": "video", "url": video_url}],
+                    phone_number=client_id,
+                )
+
+            # Post to platforms with the videos
+            await self.post_to_platforms(client_id)
+
+        except Exception as e:
+            self.logger.error(f"Error in video generation: {str(e)}")
+            await self.send_message(
+                client_id, f"An error occurred during video generation: {str(e)}"
+            )
+            # Try to continue with posting anyway
+            await self.post_to_platforms(client_id)
+
     async def post_to_platforms(self, client_id: str) -> None:
         """Post content to selected platforms"""
         self.logger.info(f"Starting post_to_platforms for {client_id}")
@@ -295,12 +412,16 @@ class ExecutionHandler(BaseHandler):
         # Make sure we're in POST_EXECUTION state
         self.state_manager.set_state(client_id, WorkflowState.POST_EXECUTION)
 
-        # Check if this is a caption-only post
-        has_images = getattr(context, "include_images", True)
-        self.logger.info(f"Posting for {client_id} with images: {has_images}")
+        # Determine if this is a video-based content
+        is_video_content = getattr(context, "is_video_content", False)
+        media_type = "video" if is_video_content else "image"
 
-        # Now post to each platform with or without images based on user's choice
-        await self.send_message(client_id, "Posting to selected platforms...")
+        self.logger.info(f"Posting for {client_id} with {media_type} content type")
+
+        # Now post to each platform with the appropriate media type
+        await self.send_message(
+            client_id, f"Posting {media_type} content to selected platforms..."
+        )
 
         # In a real implementation, this would call APIs to post to each platform
         # For now, we'll simulate success/failure
@@ -308,10 +429,10 @@ class ExecutionHandler(BaseHandler):
         failed_platforms = []
 
         for platform in context.selected_platforms:
-            # Here in a real implementation, you would check context.include_images
-            # to determine whether to post with images or caption only
-            has_images = getattr(context, "include_images", True)
-            self.logger.info(f"Posting to {platform} with images: {has_images}")
+            media_url = context.platform_images.get(platform)
+            self.logger.info(
+                f"Posting to {platform} with {media_type} URL: {media_url}"
+            )
 
             # Simulate 80% success rate
             if random.random() < 0.8:
