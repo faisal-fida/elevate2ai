@@ -218,6 +218,10 @@ class ExecutionHandler(BaseHandler):
                     if hasattr(context, "price_text") and context.price_text:
                         template_data["price_text"] = context.price_text
 
+                    # Add event_image if it exists
+                    if hasattr(context, "event_image") and context.event_image:
+                        template_data["event_image"] = context.event_image
+
                     # Validate inputs for this template
                     # template_id = f"{platform}_{client_id}_{content_type}"
                     template_id = f"{platform}_351915950259_{content_type}"  #! TODO: remove hardcoded template_id
@@ -330,6 +334,10 @@ class ExecutionHandler(BaseHandler):
 
                     if hasattr(context, "price_text") and context.price_text:
                         template_data["price_text"] = context.price_text
+
+                    # Add event_image if it exists
+                    if hasattr(context, "event_image") and context.event_image:
+                        template_data["event_image"] = context.event_image
 
                     # Validate inputs for this template
                     template_id = f"{platform}_{client_id}_{content_type}"
