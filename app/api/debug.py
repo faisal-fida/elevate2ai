@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any, Optional
 from app.services.common.debug import get_error_details, analyze_error_logs
 from app.services.common.logging import setup_logger
-from app.middleware import get_current_admin_user
+from app.api.auth.whatsapp import get_current_admin_user
 
 router = APIRouter(prefix="/debug", tags=["debug"])
 logger = setup_logger(__name__)

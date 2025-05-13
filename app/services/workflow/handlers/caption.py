@@ -1,9 +1,9 @@
-from typing import List, Dict, Any
+from typing import List
 from app.services.messaging.client import MessagingClient
 from app.services.messaging.state_manager import StateManager, WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
 from app.services.content.generator import ContentGenerator
-from app.constants import MESSAGES, TEMPLATE_CONFIG, SOCIAL_MEDIA_PLATFORMS
+from app.constants import MESSAGES, TEMPLATE_CONFIG
 from app.services.common.types import WorkflowContext, MediaItem
 
 
