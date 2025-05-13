@@ -5,6 +5,10 @@ from app.services.workflow.handlers.base import BaseHandler
 from app.constants import MESSAGES
 from app.services.common.types import WorkflowContext
 from app.services.content.switchboard import create_image
+from app.services.content.template_utils import (
+    validate_template_inputs,
+    build_template_payload,
+)
 from app.services.messaging.client import MessagingClient
 
 
@@ -192,10 +196,48 @@ class ExecutionHandler(BaseHandler):
                 )
 
                 try:
+                    # Prepare template data
+                    template_data = {
+                        "main_image": context.selected_image,
+                        "caption_text": context.caption,
+                    }
+
+                    # Add context-specific data
+                    if (
+                        hasattr(context, "destination_name")
+                        and context.destination_name
+                    ):
+                        template_data["destination_name"] = context.destination_name
+
+                    if hasattr(context, "event_name") and context.event_name:
+                        template_data["event_name"] = context.event_name
+
+                    if hasattr(context, "price_text") and context.price_text:
+                        template_data["price_text"] = context.price_text
+
+                    # Validate inputs for this template
+                    template_id = f"{platform}_{client_id}_{content_type}"
+                    is_valid, error_message, validated_data = validate_template_inputs(
+                        template_id, template_data
+                    )
+
+                    if not is_valid:
+                        self.logger.warning(f"Invalid template data: {error_message}")
+                        await self.send_message(
+                            client_id,
+                            f"Could not generate content for {platform}: {error_message}",
+                        )
+                        continue
+
+                    # Build final template payload
+                    template_payload = build_template_payload(
+                        template_id, validated_data
+                    )
+
+                    # Create image with Switchboard
                     image_response = create_image(
                         client_id=client_id,
-                        selected_image=context.selected_image,
-                        caption=context.caption,
+                        template_data=template_payload,
                         platform=platform,
                         post_type=content_type,
                     )
@@ -209,6 +251,12 @@ class ExecutionHandler(BaseHandler):
                         self.logger.warning(f"No image URL returned for {platform}")
                         context.platform_images[platform] = context.selected_image
 
+                except ValueError as ve:
+                    self.logger.error(f"Template validation error for {platform}: {ve}")
+                    await self.send_message(
+                        client_id, f"Error with template data for {platform}: {ve}"
+                    )
+                    context.platform_images[platform] = context.selected_image
                 except Exception as e:
                     self.logger.error(
                         f"Error generating image for {platform}: {str(e)}"

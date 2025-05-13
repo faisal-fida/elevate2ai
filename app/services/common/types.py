@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, TypedDict, Literal
+from typing import Dict, List, Optional, TypedDict, Literal, Any
 from dataclasses import dataclass
 
 
@@ -73,6 +73,20 @@ class WorkflowContext:
         False  # Flag to track if we're waiting for user's decision
     )
 
+    # New fields for template-based content generation
+    destination_name: str = ""  # For destination templates
+    event_name: str = ""  # For event templates
+    price_text: str = ""  # For promotional templates
+    template_id: str = ""  # Selected template ID
+    template_type: str = ""  # Type of template (destination, events, etc.)
+    template_data: Dict[str, Any] = None  # Data for template rendering
+    validation_errors: List[str] = None  # Errors from template validation
+
+    # Media asset fields for different template requirements
+    event_image: str = ""  # For event templates (client upload)
+    video_background: str = ""  # For video-based templates
+    logo_url: str = ""  # Client's logo
+
     def __post_init__(self):
         """Initialize default values for None fields"""
         if self.image_urls is None:
@@ -89,3 +103,7 @@ class WorkflowContext:
             self.supported_platforms = []
         if self.platform_images is None:
             self.platform_images = {}
+        if self.template_data is None:
+            self.template_data = {}
+        if self.validation_errors is None:
+            self.validation_errors = []

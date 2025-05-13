@@ -3,7 +3,7 @@ from app.services.messaging.client import MessagingClient
 from app.services.messaging.state_manager import StateManager, WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
 from app.services.content.generator import ContentGenerator
-from app.constants import MESSAGES
+from app.constants import MESSAGES, TEMPLATE_CONFIG
 from app.services.common.types import WorkflowContext, MediaItem
 
 
@@ -38,19 +38,113 @@ class CaptionHandler(BaseHandler):
         # Store the caption
         context.caption = message
         context.original_text = message
+
+        # Check if we need to extract template-specific input fields
+        if context.selected_content_type == "destination":
+            # Treat the message as destination name
+            is_valid, result = (
+                self.content_generator.openai_service.validate_user_input(
+                    message, max_words=5
+                )
+            )
+            if not is_valid:
+                await self.send_message(client_id, result)
+                return
+
+            context.destination_name = result
+            await self.send_message(
+                client_id, f"Great! Your destination '{result}' has been saved."
+            )
+
+        elif context.selected_content_type == "events":
+            # Treat the message as event name
+            is_valid, result = (
+                self.content_generator.openai_service.validate_user_input(
+                    message, max_words=5
+                )
+            )
+            if not is_valid:
+                await self.send_message(client_id, result)
+                return
+
+            context.event_name = result
+            await self.send_message(
+                client_id, f"Great! Your event '{result}' has been saved."
+            )
+
+        # Update context
         self.state_manager.update_context(client_id, vars(context))
 
-        # Generate content based on the caption
+        # Generate template-based content
         await self.send_message(client_id, MESSAGES["generating"])
-        caption, image_urls = await self.content_generator.generate_content(message)
 
-        # Update context with generated content
-        context.caption = caption
-        context.image_urls = image_urls
+        try:
+            # Find a template to use based on platform and content type
+            for platform in context.selected_platforms:
+                # Get the template ID
+                template_id = self.content_generator.get_template_by_platform_and_type(
+                    platform=platform,
+                    content_type=context.selected_content_type,
+                    client_id=client_id,
+                )
 
-        # Set the first image as the default selected image
-        if image_urls:
-            context.selected_image = image_urls[0]
+                if template_id:
+                    context.template_id = template_id
+                    context.template_type = context.selected_content_type
+                    break
+
+            if not context.template_id:
+                self.logger.warning(
+                    f"No suitable template found for {context.selected_content_type}"
+                )
+                caption, image_urls = await self.content_generator.generate_content(
+                    message
+                )
+                context.caption = caption
+                context.image_urls = image_urls
+            else:
+                # Prepare user inputs for template
+                user_inputs = {
+                    "caption_text": message,
+                }
+
+                # Add template-specific fields
+                if context.destination_name:
+                    user_inputs["destination_name"] = context.destination_name
+                if context.event_name:
+                    user_inputs["event_name"] = context.event_name
+                if context.price_text:
+                    user_inputs["price_text"] = context.price_text
+
+                # Generate content using template
+                (
+                    caption,
+                    image_urls,
+                    template_data,
+                ) = await self.content_generator.generate_template_content(
+                    template_id=context.template_id, user_inputs=user_inputs
+                )
+
+                context.caption = caption
+                context.image_urls = image_urls
+                context.template_data = template_data
+
+        except ValueError as ve:
+            # Handle validation errors
+            self.logger.error(f"Validation error: {ve}")
+            await self.send_message(client_id, f"Error generating content: {ve}")
+            return
+
+        except Exception as e:
+            # Handle other errors
+            self.logger.error(f"Error generating content: {e}")
+            caption, image_urls = await self.content_generator.generate_content(message)
+            context.caption = caption
+            context.image_urls = image_urls
+
+        # Set the first image as the default selected image if we have images
+        if context.image_urls:
+            context.selected_image = context.image_urls[0]
 
         # Ask about image inclusion right after generation
         context.waiting_for_image_decision = True
@@ -58,7 +152,7 @@ class CaptionHandler(BaseHandler):
 
         # Send the generated caption first
         await self.send_message(
-            client_id, f"Here is the caption for the post: {caption}"
+            client_id, f"Here is the caption for the post: {context.caption}"
         )
 
         # Ask image inclusion question
@@ -170,3 +264,29 @@ class CaptionHandler(BaseHandler):
         """Send a media gallery to the client"""
         for item in media_items:
             await self.client.send_media(media_items=[item], phone_number=client_id)
+
+    async def request_additional_fields(self, client_id: str, template_id: str) -> None:
+        """Request additional fields required by the template"""
+        template = TEMPLATE_CONFIG["templates"].get(template_id, {})
+        required_keys = template.get("required_keys", [])
+
+        context = WorkflowContext(**self.state_manager.get_context(client_id))
+
+        # Check if we need price information for promo templates
+        if "price_text" in required_keys and not context.price_text:
+            await self.send_message(
+                client_id,
+                "Please enter the price or promotion details (e.g., '$99', '50% off'):",
+            )
+            # Next message will be handled by a special state
+            context.waiting_for_price = True
+            self.state_manager.update_context(client_id, vars(context))
+        # Check for other required fields as needed
+        elif context.template_type == "destination" and not context.destination_name:
+            await self.send_message(
+                client_id, "Please enter the destination name (5 words or less):"
+            )
+        elif context.template_type == "events" and not context.event_name:
+            await self.send_message(
+                client_id, "Please enter the event name (5 words or less):"
+            )
