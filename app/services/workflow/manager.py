@@ -1,6 +1,5 @@
 import asyncio
 from app.services.common.logging import setup_logger, log_exception
-from app.services.common.debug import dump_context, save_error_snapshot
 from app.services.messaging.client import WhatsApp
 from app.config import settings
 from app.services.messaging.state_manager import StateManager, WorkflowState
@@ -43,7 +42,6 @@ class WorkflowManager:
 
     async def process_message(self, client_id: str, message: str) -> None:
         """Add an incoming message to the client's queue and ensure the processor is running."""
-        self.logger.info(f"Queueing message from {client_id}: {message[:50]}...")
         queue = self._get_message_queue(client_id)
         await queue.put(message)
 
@@ -56,7 +54,7 @@ class WorkflowManager:
             self.client_processing_tasks[client_id] = task
         else:
             self.logger.info(
-                f"Message processor already running for client {client_id}"
+                f"Message processor already running for client {client_id}, adding message to queue"
             )
 
     async def _message_processor(self, client_id: str) -> None:
@@ -96,30 +94,14 @@ class WorkflowManager:
                 handler = handler_map.get(current_state)
 
                 if handler:
-                    # Dump context before processing for debugging purposes
                     context = self.state_manager.get_context(client_id)
-                    dump_context(client_id, context, f"before_{current_state.name}")
-
-                    # Process the message
                     await handler(client_id, message_text.strip().lower())
-
-                    # Dump context after processing to track changes
-                    updated_context = self.state_manager.get_context(client_id)
-                    dump_context(
-                        client_id, updated_context, f"after_{current_state.name}"
-                    )
                 else:
                     error_msg = f"No handler found for state {current_state.name}"
                     self.logger.warning(error_msg)
 
-                    # Log detailed context information for debugging
                     context = self.state_manager.get_context(client_id)
                     self.logger.warning(f"Client context: {context}")
-
-                    # Dump context for debugging
-                    dump_context(
-                        client_id, context, f"error_no_handler_{current_state.name}"
-                    )
 
                     await self.send_message(
                         client_id,
@@ -128,32 +110,19 @@ class WorkflowManager:
                     self.state_manager.set_state(client_id, WorkflowState.INIT)
 
             except Exception as e:
-                # Use our enhanced exception logging with full context
                 state_name = current_state.name if current_state else "UNKNOWN"
-
-                # Get current context data
                 context = self.state_manager.get_context(client_id)
-
-                # Save detailed error snapshot with context
-                error_id = save_error_snapshot(
-                    error=e, client_id=client_id, state=state_name, context=context
-                )
-
                 error_msg = (
                     f"Error processing message for {client_id}\n"
                     f"State: {state_name}\n"
                     f"Message: '{message_text}'\n"
-                    f"Error ID: {error_id}"
                 )
-
-                # Log exception with full traceback
                 log_exception(self.logger, error_msg, e)
-
-                # Send user-friendly message with error ID for support reference
                 await self.send_message(
                     client_id,
-                    f"An error occurred while processing your message. Please try again or contact support with error ID: {error_id}",
+                    "An error occurred while processing your request. Please try again.",
                 )
+                self.state_manager.set_state(client_id, WorkflowState.INIT)
             finally:
                 queue.task_done()
 

@@ -20,5 +20,4 @@ class BaseHandler(ABC):
 
     async def send_message(self, client_id: str, message: str) -> Dict[str, Any]:
         """Send a message to a client"""
-        self.logger.info(f"Sending message to {client_id}: {message[:50]}...")
         return await self.client.send_message(message, client_id)

@@ -55,7 +55,7 @@ class ContentGenerator:
                 promo_text_search = promo_text
 
             # Search for images
-            self.logger.info(f"Generating images for: {promo_text_search}")
+            self.logger.info(f"Fetching images with query: {promo_text_search}")
             image_results = await self.image_service.search_images(
                 promo_text_search, limit=4
             )

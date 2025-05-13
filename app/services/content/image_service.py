@@ -109,7 +109,6 @@ class ImageService:
         """
         Search for images from providers in priority order: Pexels → Unsplash → Pixabay. Returns the first non-empty result list.
         """
-        self.logger.info(f"Searching for images with query: {query}")
         async with httpx.AsyncClient() as client:
             providers = [
                 ("pexels", self.pexels.search),
@@ -119,7 +118,6 @@ class ImageService:
 
             for provider_name, search_method in providers:
                 try:
-                    self.logger.info(f"Querying {provider_name}...")
                     result = await search_method(query, limit, client)
                     if result:
                         self.logger.info(

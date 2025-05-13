@@ -16,25 +16,21 @@ class SwitchboardCanvas:
             "Content-Type": "application/json",
         }
         self.logger = setup_logger(__name__)
-        # Create a single client instance for reuse
         self.client = httpx.Client(timeout=30.0, headers=self.headers, verify=True)
 
     def __del__(self):
         """Ensure client is closed when the instance is destroyed"""
-        if self.client:
+        if hasattr(self, "client") and self.client:
             self.logger.debug("Closing HTTP client")
             try:
                 self.client.close()
             except Exception as e:
                 self.logger.error(f"Error closing HTTP client: {e}")
-        else:
-            self.logger.debug("Client already closed or not initialized")
 
     def get_template_elements(self, template: str) -> List[Dict[str, Any]]:
         """Fetches the elements defined in a given template."""
         url = f"{self.base_url}/template/{template}/elements"
         try:
-            self.logger.info(f"Fetching template elements for {template}")
             response = self.client.get(url)
             response.raise_for_status()
             data = response.json()
@@ -56,6 +52,7 @@ class SwitchboardCanvas:
         # Get template configuration
         template_config = TEMPLATE_CONFIG["templates"].get(template_id)
         if not template_config:
+            self.logger.error(f"Template {template_id} not found in configuration")
             raise ValueError(f"Template {template_id} not found in configuration")
 
         required_keys = template_config.get("required_keys", [])
@@ -63,6 +60,9 @@ class SwitchboardCanvas:
         # Check if all required keys are present
         missing_keys = [key for key in required_keys if key not in template_data]
         if missing_keys:
+            self.logger.error(
+                f"Missing required keys for template {template_id}: {', '.join(missing_keys)}"
+            )
             raise ValueError(
                 f"Missing required keys for template {template_id}: {', '.join(missing_keys)}"
             )
@@ -71,19 +71,56 @@ class SwitchboardCanvas:
         for key in required_keys:
             if key in ["main_image", "event_image", "video_background"]:
                 if not template_data.get(key):
+                    self.logger.error(f"Missing or invalid {key} URL")
                     raise ValueError(f"Missing or invalid {key} URL")
 
         # Apply any template-specific validations
         template_type = template_config.get("type")
         if template_type == "destination" and "destination_name" in required_keys:
             if len(template_data.get("destination_name", "").split()) > 5:
+                self.logger.error("Destination name should be 5 words or less")
                 raise ValueError("Destination name should be 5 words or less")
 
         if template_type == "events" and "event_name" in required_keys:
             if len(template_data.get("event_name", "").split()) > 5:
+                self.logger.error("Event name should be 5 words or less")
                 raise ValueError("Event name should be 5 words or less")
 
         return template_data
+
+    def _process_element(
+        self, element_name: str, validated_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Helper method to process individual template elements"""
+        # Handle media assets (images/videos)
+        if (
+            element_name in ["main_image", "event_image", "video_background"]
+            and element_name in validated_data
+        ):
+            return {"url": validated_data[element_name]}
+
+        # Handle text elements
+        elif (
+            element_name
+            in [
+                "headline_text",
+                "caption_text",
+                "price_text",
+                "destination_name",
+                "event_name",
+            ]
+            and element_name in validated_data
+        ):
+            return {"text": validated_data[element_name]}
+
+        # Handle logo element
+        elif element_name == "logo":
+            # In a production environment, this would fetch from a database
+            return {
+                "url": "https://onlinepngtools.com/images/examples-onlinepngtools/google-logo-transparent.png"
+            }
+
+        return None
 
     def get_payload(
         self,
@@ -95,56 +132,19 @@ class SwitchboardCanvas:
         """Create a payload for the Switchboard Canvas API"""
         try:
             template_name = f"{platform.lower()}_{client_id}_{post_type.lower()}"
-            elements = self.get_template_elements(template_name)
-            self.logger.info(f"Elements: {elements}")
+            template_elements = self.get_template_elements(template_name)
+            self.logger.debug(f"Template elements: {template_elements}")
 
             # Validate the template data
             validated_data = self.validate_template_data(template_name, template_data)
-
             payload_elements = {}
 
             # Construct payload based on the template elements
-            for element in elements:
+            for element in template_elements:
                 element_name = element["name"]
-
-                # Handle media assets (images/videos)
-                if (
-                    element_name in ["main_image", "event_image"]
-                    and element_name in validated_data
-                ):
-                    payload_elements[element_name] = {
-                        "url": validated_data[element_name]
-                    }
-
-                # Handle video backgrounds
-                elif (
-                    element_name == "video_background"
-                    and element_name in validated_data
-                ):
-                    payload_elements[element_name] = {
-                        "url": validated_data[element_name]
-                    }
-
-                # Handle text elements
-                elif element_name in [
-                    "headline_text",
-                    "caption_text",
-                    "price_text",
-                    "destination_name",
-                    "event_name",
-                ]:
-                    if element_name in validated_data:
-                        payload_elements[element_name] = {
-                            "text": validated_data[element_name]
-                        }
-
-                # Always include the logo if it's a required element
-                elif element_name == "logo":
-                    # In a production environment, this would fetch from a database
-                    # For now, use a placeholder
-                    payload_elements[element_name] = {
-                        "url": "https://onlinepngtools.com/images/examples-onlinepngtools/google-logo-transparent.png"
-                    }
+                element_data = self._process_element(element_name, validated_data)
+                if element_data:
+                    payload_elements[element_name] = element_data
 
             # Get platform-specific image sizes
             platform_sizes = SOCIAL_MEDIA_PLATFORMS.get(platform, {}).get("sizes", [])
@@ -159,8 +159,6 @@ class SwitchboardCanvas:
                 "sizes": platform_sizes,
                 "elements": payload_elements,
             }
-
-            self.logger.info(f"Created payload for {template_name}")
             return payload
         except Exception as e:
             self.logger.error(f"Error creating payload: {e}")
@@ -169,10 +167,9 @@ class SwitchboardCanvas:
     def generate_image(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Generate an image using the Switchboard Canvas API"""
         try:
-            self.logger.info("Generating image with Switchboard Canvas")
             response = self.client.post(self.base_url, json=payload)
-            self.logger.debug(f"Switchboard API response: {response.text}")
             response.raise_for_status()
+            self.logger.info("Successfully generated image with Switchboard Canvas")
             return response.json()
         except httpx.HTTPError as e:
             self.logger.error(f"HTTP error generating image: {e}")
@@ -197,9 +194,18 @@ def create_image(
         post_type: The type of content (destination, events, etc.)
 
     Returns:
-        Response from Switchboard Canvas API
+        Response from Switchboard Canvas API containing image URLs
     """
+    logger = setup_logger("create_image")
+    logger.info(
+        f"Creating image for client {client_id} on {platform} with post type {post_type}"
+    )
     canvas = SwitchboardCanvas()
-    payload = canvas.get_payload(client_id, template_data, platform, post_type)
-    response = canvas.generate_image(payload)
-    return response
+    try:
+        client_id = "351915950259"
+        payload = canvas.get_payload(client_id, template_data, platform, post_type)
+        response = canvas.generate_image(payload)
+        return response
+    except Exception as e:
+        logger.error(f"Failed to create image: {e}")
+        raise

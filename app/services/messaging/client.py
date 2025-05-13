@@ -195,9 +195,6 @@ class WhatsApp(MessagingClient):
 
                         responses.append({"error": f"{error_code}: {error_message}"})
                     else:
-                        self.logger.info(
-                            f"Successfully sent {media_type} to {phone_number}"
-                        )
                         responses.append(response_data)
                 except Exception as e:
                     error_msg = f"Failed to send {media_type}: {str(e)}"
@@ -288,7 +285,6 @@ class WhatsApp(MessagingClient):
             response = await client.post(self.url, headers=self.headers, json=data)
 
             if response.status_code == 200:
-                self.logger.info(f"Interactive buttons sent to {phone_number}")
                 responses.append(response.json())
             else:
                 error_msg = f"Failed to send interactive buttons to {phone_number}: {response.text}"

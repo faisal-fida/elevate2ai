@@ -11,10 +11,10 @@ if not os.path.exists("logs"):
     os.makedirs("logs")
 
 # Global log format with more detailed context
-LOG_FORMAT = (
-    "%(asctime)s | %(levelname)s | %(name)s | (%(filename)s:%(lineno)d) | %(message)s"
+LOG_FORMAT = "%(levelname)s | %(name)s | (%(filename)s:%(lineno)d) | %(message)s"
+DETAILED_FORMAT = (
+    "%(levelname)s | %(name)s | (%(filename)s:%(lineno)d) | %(funcName)s | %(message)s"
 )
-DETAILED_FORMAT = "%(asctime)s | %(levelname)s | %(name)s | (%(filename)s:%(lineno)d) | %(funcName)s | %(message)s"
 
 
 # Custom error handler that includes traceback information

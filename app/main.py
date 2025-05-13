@@ -2,31 +2,26 @@ from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.params import Query
-from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.api.webhook import verify_webhook, handle_message
 from app.api.auth.router import auth_router
-from app.api.debug import router as debug_router
 from .middleware import CustomJWTAuthMiddleware
 from app.db import Base, engine, get_db
 from app.services.auth.whatsapp import AuthService
-from app.services.common.logging import setup_logger, log_exception
-from app.services.common.debug import save_error_snapshot
+from app.services.common.logging import setup_logger
 
 logger = setup_logger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Creating database tables...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables created.")
 
-    logger.info("Ensuring admin user exists...")
     async_db_session_gen = get_db()
 
     try:
@@ -79,48 +74,6 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix="/api")
-app.include_router(debug_router, prefix="/api")
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Handle validation errors with detailed logging for debugging"""
-    error_id = save_error_snapshot(
-        error=exc, context={"url": str(request.url), "headers": dict(request.headers)}
-    )
-
-    log_exception(
-        logger, f"Validation error on {request.url} - Error ID: {error_id}", exc
-    )
-
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={
-            "detail": exc.errors(),
-            "error_id": error_id,
-            "message": "Validation error. Please check your input.",
-        },
-    )
-
-
-@app.exception_handler(Exception)
-async def general_exception_handler(request: Request, exc: Exception):
-    """Handle general exceptions with detailed logging for debugging"""
-    error_id = save_error_snapshot(
-        error=exc, context={"url": str(request.url), "method": request.method}
-    )
-
-    log_exception(
-        logger, f"Unhandled exception on {request.url} - Error ID: {error_id}", exc
-    )
-
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "error_id": error_id,
-            "message": f"An unexpected error occurred. Please contact support with this error ID: {error_id}",
-        },
-    )
 
 
 @app.get("/", tags=["root"])
@@ -143,11 +96,8 @@ async def webhook_handler(request: Request):
         data = await request.json()
         return await handle_message(data)
     except Exception as e:
-        error_id = save_error_snapshot(
-            error=e, context={"url": "/webhook", "method": "POST"}
-        )
-        logger.error(f"Error handling webhook: {e} - Error ID: {error_id}")
+        logger.error(f"Error handling webhook: {e}")
         return JSONResponse(
-            content={"status": "error", "message": str(e), "error_id": error_id},
+            content={"status": "error", "message": str(e)},
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

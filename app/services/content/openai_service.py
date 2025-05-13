@@ -27,7 +27,6 @@ class AsyncOpenAIService:
     ) -> Optional[str]:
         """Create a chat completion using OpenAI API"""
         try:
-            self.logger.info(f"Creating chat completion with model {model}")
             completion = await self._client.chat.completions.create(
                 model=model,
                 messages=messages,
@@ -147,9 +146,7 @@ class AsyncOpenAIService:
             self.logger.info(f"Generating image search query for {template_type}")
             query = await self.create_chat_completion(messages=messages)
 
-            # Ensure the query is clean and usable
             if query:
-                # Remove quotes and extra formatting that might be returned
                 query = query.strip("\"'").strip()
 
             return query

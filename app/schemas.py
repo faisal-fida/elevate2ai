@@ -19,10 +19,6 @@ class Token(BaseModel):
     refresh_token: Optional[str] = None
 
 
-class TokenData(BaseModel):
-    whatsapp_number: Optional[str] = None
-
-
 class UserInDB(BaseModel):
     whatsapp_number: str
     is_active: bool

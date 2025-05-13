@@ -67,8 +67,6 @@ class ExecutionHandler(BaseHandler):
             {"id": "no_images", "title": "No, caption only"},
         ]
 
-        self.logger.info(f"Sending image inclusion prompt to {client_id}")
-
         try:
             await self.client.send_interactive_buttons(
                 header_text="Image Selection",
@@ -93,7 +91,6 @@ class ExecutionHandler(BaseHandler):
 
         # Handle both button responses and text responses
         if message in ["yes_images", "yes", "y", "yes include images"]:
-            self.logger.info(f"User {client_id} chose to include images")
             context.include_images = True
             self.state_manager.update_context(client_id, vars(context))
 
@@ -103,7 +100,6 @@ class ExecutionHandler(BaseHandler):
             # Continue with generating images
             await self.generate_platform_images(client_id)
         elif message in ["no_images", "no", "n", "no caption only"]:
-            self.logger.info(f"User {client_id} chose not to include images")
             context.include_images = False
             self.state_manager.update_context(client_id, vars(context))
 
@@ -139,9 +135,6 @@ class ExecutionHandler(BaseHandler):
             "tomorrow",
             "next week",
         ]:
-            self.logger.info(
-                f"Message '{message}' appears to be for scheduling, letting scheduler handle it"
-            )
             if self.scheduling_handler is not None:
                 self.state_manager.set_state(
                     client_id, WorkflowState.SCHEDULE_SELECTION
