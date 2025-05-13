@@ -42,9 +42,6 @@ class CaptionHandler(BaseHandler):
         elif current_state == WorkflowState.WAITING_FOR_PRICE:
             await self.handle_price_input(client_id, message)
             return
-        elif current_state == WorkflowState.WAITING_FOR_EVENT_IMAGE:
-            await self.handle_event_image_input(client_id, message)
-            return
         elif current_state == WorkflowState.MEDIA_SOURCE_SELECTION:
             await self.handle_media_source_selection(client_id, message)
             return
@@ -243,13 +240,6 @@ class CaptionHandler(BaseHandler):
             )
             return True
 
-        if "event_image" in required_keys and not context.event_image:
-            self.state_manager.set_state(
-                client_id, WorkflowState.WAITING_FOR_EVENT_IMAGE
-            )
-            await self.send_message(client_id, "Please upload an image for your event:")
-            return True
-
         return False  # No additional inputs needed
 
     async def handle_destination_input(self, client_id: str, message: str) -> None:
@@ -307,21 +297,6 @@ class CaptionHandler(BaseHandler):
         await self.send_message(
             client_id, f"Great! Price information '{message}' saved."
         )
-
-        # Return to caption input state and continue processing
-        self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
-        await self.handle(client_id, context.original_text)
-
-    async def handle_event_image_input(self, client_id: str, message: str) -> None:
-        """Handle event image input"""
-        context = WorkflowContext(**self.state_manager.get_context(client_id))
-
-        # In a real implementation, this would handle an uploaded image
-        # For now, assume the message contains a URL
-        context.event_image = message
-        self.state_manager.update_context(client_id, vars(context))
-
-        await self.send_message(client_id, "Great! Event image saved.")
 
         # Return to caption input state and continue processing
         self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)

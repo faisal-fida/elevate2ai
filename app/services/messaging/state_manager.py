@@ -22,7 +22,6 @@ class WorkflowState(Enum):
     WAITING_FOR_DESTINATION = "waiting_for_destination"
     WAITING_FOR_EVENT_NAME = "waiting_for_event_name"
     WAITING_FOR_PRICE = "waiting_for_price"
-    WAITING_FOR_EVENT_IMAGE = "waiting_for_event_image"
 
     # Media selection states
     MEDIA_SOURCE_SELECTION = "media_source_selection"

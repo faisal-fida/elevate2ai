@@ -53,8 +53,8 @@ class WorkflowManager:
             task = asyncio.create_task(self._message_processor(client_id))
             self.client_processing_tasks[client_id] = task
         else:
-            self.logger.info(
-                f"Message processor already running for client {client_id}, adding message to queue"
+            self.logger.debug(
+                f"Message processor already running for client {client_id}"
             )
 
     async def _message_processor(self, client_id: str) -> None:
@@ -83,7 +83,6 @@ class WorkflowManager:
                     WorkflowState.WAITING_FOR_DESTINATION: self.caption_handler.handle,
                     WorkflowState.WAITING_FOR_EVENT_NAME: self.caption_handler.handle,
                     WorkflowState.WAITING_FOR_PRICE: self.caption_handler.handle,
-                    WorkflowState.WAITING_FOR_EVENT_IMAGE: self.caption_handler.handle,
                     # Media selection states
                     WorkflowState.MEDIA_SOURCE_SELECTION: self.caption_handler.handle,
                     WorkflowState.WAITING_FOR_MEDIA_UPLOAD: self.caption_handler.handle,
