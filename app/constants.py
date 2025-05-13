@@ -100,7 +100,7 @@ TEMPLATE_CONFIG = {
                 "event_name",
             ],  # `event_image` implies client upload
         },
-        "likedin_351915950259_events": {
+        "linkedin_351915950259_events": {
             "type": "events",
             "required_keys": ["event_image", "event_name"],
         },

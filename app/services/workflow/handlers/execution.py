@@ -216,7 +216,8 @@ class ExecutionHandler(BaseHandler):
                         template_data["price_text"] = context.price_text
 
                     # Validate inputs for this template
-                    template_id = f"{platform}_{client_id}_{content_type}"
+                    # template_id = f"{platform}_{client_id}_{content_type}"
+                    template_id = f"{platform}_351915950259_{content_type}"  #! TODO: remove hardcoded template_id
                     is_valid, error_message, validated_data = validate_template_inputs(
                         template_id, template_data
                     )
