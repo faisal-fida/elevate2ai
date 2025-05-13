@@ -492,13 +492,27 @@ class ExecutionHandler(BaseHandler):
             caption=context.caption,
         )
 
-        # Send the selected image with the summary
-        await self.client.send_media(
-            media_items=[
-                {"type": "image", "url": context.selected_image, "caption": summary}
-            ],
-            phone_number=client_id,
-        )
+        # Determine if this is video content
+        is_video_content = getattr(context, "is_video_content", False)
+
+        # Send the selected media with the summary
+        if is_video_content and context.selected_video:
+            await self.client.send_media(
+                media_items=[
+                    {"type": "video", "url": context.selected_video, "caption": summary}
+                ],
+                phone_number=client_id,
+            )
+        elif context.selected_image:
+            await self.client.send_media(
+                media_items=[
+                    {"type": "image", "url": context.selected_image, "caption": summary}
+                ],
+                phone_number=client_id,
+            )
+        else:
+            # Just send the text summary if no media is available
+            await self.send_message(client_id, summary)
 
         await asyncio.sleep(1)
 

@@ -78,6 +78,7 @@ class WorkflowContext:
         None  # Platforms that support the selected content type
     )
     platform_images: Dict[str, str] = None  # Platform-specific edited images
+    platform_videos: Dict[str, str] = None  # Platform-specific edited videos
 
     # New fields for image inclusion feature
     include_images: bool = True  # Default to including images
@@ -127,6 +128,8 @@ class WorkflowContext:
             self.supported_platforms = []
         if self.platform_images is None:
             self.platform_images = {}
+        if self.platform_videos is None:
+            self.platform_videos = {}
         if self.template_data is None:
             self.template_data = {}
         if self.validation_errors is None:

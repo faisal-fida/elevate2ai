@@ -97,8 +97,19 @@ class ContentGenerator:
             template_type = template_details.get("type", "generic")
             required_keys = template_details.get("required_keys", [])
 
+            # Check if this is a platform that requires video (like TikTok)
+            platform = template_id.split("_")[0] if "_" in template_id else ""
+            is_video_platform = platform.lower() == "tiktok"
+
+            # Determine if this is a video-based template
+            is_video_content = (
+                "video_background" in required_keys
+                or is_video_platform
+                or template_type == "reels"
+            )
+
             self.logger.info(
-                f"Generating content for template {template_id} of type {template_type}"
+                f"Generating content for template {template_id} of type {template_type} (video content: {is_video_content})"
             )
 
             # Initialize result dict with template info
@@ -106,6 +117,7 @@ class ContentGenerator:
                 "template_id": template_id,
                 "template_type": template_type,
                 "required_keys": required_keys,
+                "is_video_content": is_video_content,
             }
 
             # Validate and process user inputs for required fields
@@ -138,9 +150,6 @@ class ContentGenerator:
             context["caption"] = caption
             template_data["caption_text"] = caption
 
-            # Determine if this is a video-based template
-            is_video_content = "video_background" in required_keys
-
             # Generate appropriate search query based on template type and context
             if is_video_content:
                 search_query = f"{template_type} background video"
@@ -171,8 +180,8 @@ class ContentGenerator:
                     media_urls = [event_image]
                     template_data["event_image"] = event_image
 
-            # Handle media search based on required_keys
-            elif "main_image" in required_keys:
+            # Handle media search based on required_keys and content type
+            elif "main_image" in required_keys and not is_video_content:
                 # Search for images
                 self.logger.info(f"Searching images with query: {search_query}")
                 media_urls = await self.image_service.search_images(
@@ -190,7 +199,7 @@ class ContentGenerator:
                     template_data["main_image"] = media_urls[0]
 
             # Handle video content
-            elif "video_background" in required_keys:
+            elif is_video_content:
                 # In a real implementation, we would have a video service similar to image_service
                 # For now, we'll use mock video URLs
                 self.logger.info(f"Searching for video with query: {search_query}")

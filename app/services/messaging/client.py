@@ -94,16 +94,46 @@ class WhatsApp(MessagingClient):
             "type": "text",
             "text": {"preview_url": preview_url, "body": message},
         }
-        async with httpx.AsyncClient() as client:
-            response = await client.post(self.url, headers=self.headers, json=data)
 
-        if response.status_code != 200:
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(self.url, headers=self.headers, json=data)
+
+                response_data = response.json()
+
+                if response.status_code != 200:
+                    error_info = response_data.get("error", {})
+                    error_code = error_info.get("code")
+                    error_message = error_info.get("message", "Unknown error")
+
+                    if error_code == 131030:
+                        # This is a common error in test environments when recipient isn't in the allowed list
+                        error_details = "Recipient phone number not in allowed list. In test environment, add the number to the test numbers in Meta developer portal."
+                        self.logger.error(
+                            f"WhatsApp API Error {error_code}: {error_details}"
+                        )
+
+                        # Use original error message for debugging but continue execution
+                        self.logger.debug(f"Original error: {error_message}")
+                    else:
+                        self.logger.error(
+                            f"Failed to send message to {phone_number}: {response.text}"
+                        )
+
+                    # Continue execution despite the error, but log it properly
+                    self.logger.warning(
+                        f"Message not delivered to {phone_number} due to API error {error_code}: {error_message}"
+                    )
+                else:
+                    self.logger.info(f"Sent message to {phone_number}.")
+
+                return response_data
+
+        except Exception as e:
             self.logger.error(
-                f"Failed to send message to {phone_number}: {response.text}"
+                f"Exception while sending message to {phone_number}: {str(e)}"
             )
-
-        self.logger.info(f"Sent message to {phone_number}.")
-        return response.json()
+            return {"error": {"message": str(e), "type": "Exception"}}
 
     async def send_media(
         self,
@@ -121,6 +151,12 @@ class WhatsApp(MessagingClient):
                 media_type = item.get("type", "").lower()
                 if media_type not in ["image", "video"]:
                     self.logger.error(f"Unsupported media type: {media_type}")
+                    responses.append({"error": f"Unsupported media type: {media_type}"})
+                    continue
+
+                if not item.get("url"):
+                    self.logger.error(f"Missing URL for {media_type}")
+                    responses.append({"error": f"Missing URL for {media_type}"})
                     continue
 
                 payload = {
@@ -135,11 +171,34 @@ class WhatsApp(MessagingClient):
                     payload[media_type]["caption"] = caption
 
                 try:
+                    self.logger.info(f"Sending {media_type} to {phone_number}")
                     response = await client.post(
                         self.url, headers=self.headers, json=payload
                     )
-                    response.raise_for_status()
-                    responses.append(response.json())
+
+                    response_data = response.json()
+
+                    if response.status_code != 200:
+                        error_info = response_data.get("error", {})
+                        error_code = error_info.get("code")
+                        error_message = error_info.get("message", "Unknown error")
+
+                        if error_code == 131030:
+                            # Recipient not in allowed list
+                            self.logger.error(
+                                f"WhatsApp API Error {error_code}: Recipient not in allowed list"
+                            )
+                        else:
+                            self.logger.error(
+                                f"Failed to send {media_type}: {response.text}"
+                            )
+
+                        responses.append({"error": f"{error_code}: {error_message}"})
+                    else:
+                        self.logger.info(
+                            f"Successfully sent {media_type} to {phone_number}"
+                        )
+                        responses.append(response_data)
                 except Exception as e:
                     error_msg = f"Failed to send {media_type}: {str(e)}"
                     self.logger.error(error_msg)
