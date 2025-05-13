@@ -70,6 +70,8 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
                 }
         else:
             if message.get("type") != "text":
+                print("Non-text message received")
+                print(message)
                 message_type = message.get("type", "unknown")
                 if message_type in ["image", "video", "document"]:
                     message_text = f"[{message_type}]"  # Placeholder
