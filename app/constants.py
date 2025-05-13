@@ -64,3 +64,54 @@ OPENAI_PROMPTS = {
     "search_system": "You are a marketing expert. Create a search query for finding relevant images. Just return the search query for platform like Unsplash nothing else.",
     "search_user": "Create a search query for: {caption}",
 }
+
+
+# TEMPLATE_CONFIG is a dictionary that contains the templates for the different types of content.
+TEMPLATE_CONFIG = {
+    "templates": {
+        # Destination Group
+        "instagram_351915950259_destination": {
+            "type": "destination",
+            "required_keys": ["main_image", "destination_name"],
+        },
+        "instagram_351915950259_promo": {
+            "type": "destination",
+            "required_keys": [
+                "main_image",
+                "destination_name",
+                "caption_text",
+                "price_text",
+            ],
+        },
+        "tiktok_351915950259_promo": {
+            "type": "destination",
+            "required_keys": [
+                "video_background",
+                "destination_name",
+                "caption_text",
+                "price_text",
+            ],
+        },
+        # Events Group
+        "instagram_351915950259_events": {
+            "type": "events",
+            "required_keys": [
+                "event_image",
+                "event_name",
+            ],  # `event_image` implies client upload
+        },
+        "likedin_351915950259_events": {
+            "type": "events",
+            "required_keys": ["event_image", "event_name"],
+        },
+        # Caption-Only Group
+        "instagram_351915950259_tips": {
+            "type": "caption_only",
+            "required_keys": ["main_image", "caption_text"],
+        },
+        "instagram_351915950259_reels": {
+            "type": "caption_only",
+            "required_keys": ["video_background", "caption_text"],
+        },
+    }
+}

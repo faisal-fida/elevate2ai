@@ -6,3 +6,4 @@ venv/
 .venv/
 *.db
 .ruff_cache
+.cursor/
