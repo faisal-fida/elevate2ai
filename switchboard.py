@@ -113,3 +113,14 @@ def create_image(
     )
     response = canvas.generate_image(payload)
     return response
+
+
+if __name__ == "__main__":
+    client_id = "1234567890"
+    selected_image = "https://images.unsplash.com/photo-1454496522488-7a8e488e8606"
+    caption = "This is a test caption."
+    platform = "instagram"
+    post_type = "events"
+
+    response = create_image(client_id, selected_image, caption, platform, post_type)
+    print(response)

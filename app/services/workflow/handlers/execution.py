@@ -194,7 +194,7 @@ class ExecutionHandler(BaseHandler):
                 try:
                     image_response = create_image(
                         client_id=client_id,
-                        selected_url=context.selected_image,
+                        selected_image=context.selected_image,
                         caption=context.caption,
                         platform=platform,
                         post_type=content_type,
