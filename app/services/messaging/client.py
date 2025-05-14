@@ -1,3 +1,10 @@
+"""
+WhatsApp messaging client for sending different types of messages.
+
+This module provides a client for interacting with the WhatsApp Business API,
+allowing the application to send text messages, media, and interactive elements.
+"""
+
 from __future__ import annotations
 import httpx
 from typing import Dict, Any, Optional, Union, List
@@ -6,7 +13,12 @@ from app.services.common.types import MediaItem, ButtonItem, SectionItem
 
 
 class MessagingClient:
-    """Base class for messaging clients"""
+    """
+    Base class for messaging clients defining the interface for sending messages.
+
+    This abstract class defines the methods that any messaging client should implement,
+    ensuring consistent behavior regardless of the underlying messaging platform.
+    """
 
     def __init__(self):
         self.logger = setup_logger(__name__)
@@ -14,7 +26,17 @@ class MessagingClient:
     async def send_message(
         self, message: str, recipient_id: str, **kwargs
     ) -> Dict[str, Any]:
-        """Send a text message to a recipient"""
+        """
+        Send a text message to a recipient.
+
+        Args:
+            message: Text content to send
+            recipient_id: Identifier for the message recipient
+            kwargs: Additional platform-specific parameters
+
+        Returns:
+            Response data from the messaging platform
+        """
         raise NotImplementedError("Subclasses must implement this method")
 
     async def send_media(
@@ -23,7 +45,17 @@ class MessagingClient:
         recipient_id: str,
         **kwargs,
     ) -> Dict[str, Any]:
-        """Send media to a recipient"""
+        """
+        Send media to a recipient.
+
+        Args:
+            media_items: Media content to send (images, videos, etc.)
+            recipient_id: Identifier for the message recipient
+            kwargs: Additional platform-specific parameters
+
+        Returns:
+            Response data from the messaging platform
+        """
         raise NotImplementedError("Subclasses must implement this method")
 
     async def send_interactive_buttons(
@@ -34,7 +66,19 @@ class MessagingClient:
         recipient_id: str,
         **kwargs,
     ) -> Dict[str, Any]:
-        """Send interactive buttons to a recipient"""
+        """
+        Send interactive buttons to a recipient.
+
+        Args:
+            header_text: Text to display in the message header
+            body_text: Main message content
+            buttons: List of interactive buttons
+            recipient_id: Identifier for the message recipient
+            kwargs: Additional platform-specific parameters
+
+        Returns:
+            Response data from the messaging platform
+        """
         raise NotImplementedError("Subclasses must implement this method")
 
     async def send_interactive_list(
@@ -46,16 +90,41 @@ class MessagingClient:
         recipient_id: str,
         **kwargs,
     ) -> Dict[str, Any]:
-        """Send an interactive list to a recipient"""
+        """
+        Send an interactive list to a recipient.
+
+        Args:
+            header_text: Text to display in the message header
+            body_text: Main message content
+            button_text: Text for the list button
+            sections: List of sections containing selectable items
+            recipient_id: Identifier for the message recipient
+            kwargs: Additional platform-specific parameters
+
+        Returns:
+            Response data from the messaging platform
+        """
         raise NotImplementedError("Subclasses must implement this method")
 
 
 class WhatsApp(MessagingClient):
-    """WhatsApp messaging client implementation"""
+    """
+    WhatsApp messaging client implementation using the WhatsApp Business API.
+
+    Provides methods for sending text messages, media attachments,
+    and interactive elements to WhatsApp users.
+    """
 
     def __init__(
         self, token: Optional[str] = None, phone_number_id: Optional[str] = None
     ):
+        """
+        Initialize the WhatsApp client.
+
+        Args:
+            token: WhatsApp API authentication token
+            phone_number_id: WhatsApp Business phone number ID
+        """
         super().__init__()
         self.token = token
         self.phone_number_id = phone_number_id
@@ -86,7 +155,18 @@ class WhatsApp(MessagingClient):
         recipient_type: str = "individual",
         preview_url: bool = True,
     ) -> Dict[str, Any]:
-        """Send a text message to a WhatsApp user"""
+        """
+        Send a text message to a WhatsApp user.
+
+        Args:
+            message: Text content to send
+            phone_number: Recipient's phone number
+            recipient_type: Type of recipient ('individual' or 'group')
+            preview_url: Whether to generate link previews in the message
+
+        Returns:
+            Response data from the WhatsApp API
+        """
         data = {
             "messaging_product": "whatsapp",
             "recipient_type": recipient_type,
@@ -98,41 +178,16 @@ class WhatsApp(MessagingClient):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(self.url, headers=self.headers, json=data)
-
                 response_data = response.json()
 
                 if response.status_code != 200:
-                    error_info = response_data.get("error", {})
-                    error_code = error_info.get("code")
-                    error_message = error_info.get("message", "Unknown error")
-
-                    if error_code == 131030:
-                        # This is a common error in test environments when recipient isn't in the allowed list
-                        error_details = "Recipient phone number not in allowed list. In test environment, add the number to the test numbers in Meta developer portal."
-                        self.logger.error(
-                            f"WhatsApp API Error {error_code}: {error_details}"
-                        )
-
-                        # Use original error message for debugging but continue execution
-                        self.logger.debug(f"Original error: {error_message}")
-                    else:
-                        self.logger.error(
-                            f"Failed to send message to {phone_number}: {response.text}"
-                        )
-
-                    # Continue execution despite the error, but log it properly
-                    self.logger.warning(
-                        f"Message not delivered to {phone_number} due to API error {error_code}: {error_message}"
-                    )
+                    self._handle_api_error(response_data, phone_number)
                 else:
-                    self.logger.info(f"Sent message to {phone_number}.")
+                    self.logger.info(f"Sent message to {phone_number}")
 
                 return response_data
-
         except Exception as e:
-            self.logger.error(
-                f"Exception while sending message to {phone_number}: {str(e)}"
-            )
+            self.logger.error(f"Exception sending message to {phone_number}: {str(e)}")
             return {"error": {"message": str(e), "type": "Exception"}}
 
     async def send_media(
@@ -141,67 +196,88 @@ class WhatsApp(MessagingClient):
         phone_number: str,
         recipient_type: str = "individual",
     ) -> List[Dict[str, Any]]:
-        """Send media to a WhatsApp user"""
+        """
+        Send media to a WhatsApp user.
+
+        Args:
+            media_items: List of media items to send (images, videos)
+            phone_number: Recipient's phone number
+            recipient_type: Type of recipient ('individual' or 'group')
+
+        Returns:
+            List of response data from the WhatsApp API
+        """
         if not isinstance(media_items, list):
             media_items = [media_items]
 
         responses = []
         async with httpx.AsyncClient() as client:
             for item in media_items:
-                media_type = item.get("type", "").lower()
-                if media_type not in ["image", "video"]:
-                    self.logger.error(f"Unsupported media type: {media_type}")
-                    responses.append({"error": f"Unsupported media type: {media_type}"})
-                    continue
-
-                if not item.get("url"):
-                    self.logger.error(f"Missing URL for {media_type}")
-                    responses.append({"error": f"Missing URL for {media_type}"})
-                    continue
-
-                payload = {
-                    "messaging_product": "whatsapp",
-                    "recipient_type": recipient_type,
-                    "to": phone_number,
-                    "type": media_type,
-                    media_type: {"link": item.get("url", "")},
-                }
-
-                if caption := item.get("caption"):
-                    payload[media_type]["caption"] = caption
-
-                try:
-                    self.logger.info(f"Sending {media_type} to {phone_number}")
-                    response = await client.post(
-                        self.url, headers=self.headers, json=payload
-                    )
-
-                    response_data = response.json()
-
-                    if response.status_code != 200:
-                        error_info = response_data.get("error", {})
-                        error_code = error_info.get("code")
-                        error_message = error_info.get("message", "Unknown error")
-
-                        if error_code == 131030:
-                            # Recipient not in allowed list
-                            self.logger.error(
-                                f"WhatsApp API Error {error_code}: Recipient not in allowed list"
-                            )
-                        else:
-                            self.logger.error(
-                                f"Failed to send {media_type}: {response.text}"
-                            )
-
-                        responses.append({"error": f"{error_code}: {error_message}"})
-                    else:
-                        responses.append(response_data)
-                except Exception as e:
-                    error_msg = f"Failed to send {media_type}: {str(e)}"
-                    self.logger.error(error_msg)
-                    responses.append({"error": error_msg})
+                response_data = await self._send_single_media_item(
+                    client, item, phone_number, recipient_type
+                )
+                responses.append(response_data)
 
         return responses
+
+    async def _send_single_media_item(
+        self,
+        client: httpx.AsyncClient,
+        item: MediaItem,
+        phone_number: str,
+        recipient_type: str = "individual",
+    ) -> Dict[str, Any]:
+        """
+        Send a single media item to a WhatsApp user.
+
+        Args:
+            client: HTTPX client to use for the request
+            item: Media item to send
+            phone_number: Recipient's phone number
+            recipient_type: Type of recipient
+
+        Returns:
+            Response data from the WhatsApp API
+        """
+        media_type = item.get("type", "").lower()
+
+        # Validate media type
+        if media_type not in ["image", "video"]:
+            self.logger.error(f"Unsupported media type: {media_type}")
+            return {"error": f"Unsupported media type: {media_type}"}
+
+        # Validate URL
+        if not item.get("url"):
+            self.logger.error(f"Missing URL for {media_type}")
+            return {"error": f"Missing URL for {media_type}"}
+
+        # Prepare payload
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": recipient_type,
+            "to": phone_number,
+            "type": media_type,
+            media_type: {"link": item.get("url", "")},
+        }
+
+        # Add caption if present
+        if caption := item.get("caption"):
+            payload[media_type]["caption"] = caption
+
+        try:
+            self.logger.info(f"Sending {media_type} to {phone_number}")
+            response = await client.post(self.url, headers=self.headers, json=payload)
+            response_data = response.json()
+
+            if response.status_code != 200:
+                self._handle_api_error(response_data, phone_number, media_type)
+                return {"error": self._format_error_message(response_data)}
+
+            return response_data
+        except Exception as e:
+            error_msg = f"Exception sending {media_type}: {str(e)}"
+            self.logger.error(error_msg)
+            return {"error": {"message": error_msg, "type": "Exception"}}
 
     async def send_interactive_buttons(
         self,
@@ -210,88 +286,70 @@ class WhatsApp(MessagingClient):
         buttons: List[ButtonItem],
         phone_number: str,
         recipient_type: str = "individual",
-    ) -> List[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """
         Send interactive buttons to a WhatsApp user.
-        If there are more than 3 buttons, automatically use interactive list instead.
+
+        Args:
+            header_text: Text to display in the message header
+            body_text: Main message content
+            buttons: List of interactive buttons (max 3)
+            phone_number: Recipient's phone number
+            recipient_type: Type of recipient ('individual' or 'group')
+
+        Returns:
+            Response data from the WhatsApp API
         """
-        # Check if buttons list is empty
-        if not buttons:
-            self.logger.warning(
-                "Empty buttons list provided, sending regular message instead"
-            )
-            await self.send_message(
-                message=f"{header_text}\n\n{body_text}",
-                phone_number=phone_number,
-                recipient_type=recipient_type,
-            )
-            return [
-                {
-                    "status": "success",
-                    "message": "Sent as regular message due to empty buttons list",
-                }
-            ]
-
-        # If more than 3 buttons, use interactive list instead
+        # WhatsApp supports a maximum of 3 buttons
         if len(buttons) > 3:
-            rows = []
-            for button in buttons:
-                rows.append(
-                    {
-                        "id": button["id"],
-                        "title": button["title"],
-                        "description": "",  # Optional description
-                    }
-                )
-            section = {"title": header_text, "rows": rows}
-            button_text = "Select an option"
+            self.logger.warning(
+                f"WhatsApp only supports up to 3 buttons, truncating list"
+            )
+            buttons = buttons[:3]
 
-            try:
-                response = await self.send_interactive_list(
-                    header_text=header_text,
-                    body_text=body_text,
-                    button_text=button_text,
-                    sections=[section],
-                    phone_number=phone_number,
-                    recipient_type=recipient_type,
-                )
-                return [response]
-            except Exception as e:
-                self.logger.error(f"Error sending interactive list: {str(e)}")
-                raise
-
-        # Otherwise, use buttons as before
-        responses = []
-        formatted_buttons = [
-            {"type": "reply", "reply": {"id": button["id"], "title": button["title"]}}
-            for button in buttons
-        ]
-
-        data = {
+        payload = {
             "messaging_product": "whatsapp",
             "recipient_type": recipient_type,
             "to": phone_number,
             "type": "interactive",
             "interactive": {
                 "type": "button",
-                "header": {"type": "text", "text": header_text},
                 "body": {"text": body_text},
-                "action": {"buttons": formatted_buttons},
+                "action": {
+                    "buttons": [
+                        {
+                            "type": "reply",
+                            "reply": {"id": btn["id"], "title": btn["title"]},
+                        }
+                        for btn in buttons
+                    ]
+                },
             },
         }
 
-        self.logger.info(f"Sending interactive buttons to {phone_number}")
-        async with httpx.AsyncClient() as client:
-            response = await client.post(self.url, headers=self.headers, json=data)
+        # Add header if provided
+        if header_text:
+            payload["interactive"]["header"] = {"type": "text", "text": header_text}
 
-            if response.status_code == 200:
-                responses.append(response.json())
-            else:
-                error_msg = f"Failed to send interactive buttons to {phone_number}: {response.text}"
-                self.logger.error(error_msg)
-                responses.append({"error": error_msg})
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    self.url, headers=self.headers, json=payload
+                )
+                response_data = response.json()
 
-        return responses
+                if response.status_code != 200:
+                    self._handle_api_error(
+                        response_data, phone_number, "interactive buttons"
+                    )
+                else:
+                    self.logger.info(f"Sent interactive buttons to {phone_number}")
+
+                return response_data
+        except Exception as e:
+            error_msg = f"Exception sending interactive buttons: {str(e)}"
+            self.logger.error(error_msg)
+            return {"error": {"message": error_msg, "type": "Exception"}}
 
     async def send_interactive_list(
         self,
@@ -302,33 +360,114 @@ class WhatsApp(MessagingClient):
         phone_number: str,
         recipient_type: str = "individual",
     ) -> Dict[str, Any]:
-        """Send an interactive list to a WhatsApp user"""
-        data = {
+        """
+        Send an interactive list to a WhatsApp user.
+
+        Args:
+            header_text: Text to display in the message header
+            body_text: Main message content
+            button_text: Text for the list button
+            sections: List of sections containing selectable items
+            phone_number: Recipient's phone number
+            recipient_type: Type of recipient ('individual' or 'group')
+
+        Returns:
+            Response data from the WhatsApp API
+        """
+        payload = {
             "messaging_product": "whatsapp",
             "recipient_type": recipient_type,
             "to": phone_number,
             "type": "interactive",
             "interactive": {
                 "type": "list",
-                "header": {"type": "text", "text": header_text},
                 "body": {"text": body_text},
-                "action": {"button": button_text, "sections": sections},
+                "action": {"button": button_text, "sections": []},
             },
         }
 
+        # Add header if provided
+        if header_text:
+            payload["interactive"]["header"] = {"type": "text", "text": header_text}
+
+        # Prepare sections
+        for section in sections:
+            section_data = {"title": section["title"], "rows": []}
+
+            for item in section["items"]:
+                section_data["rows"].append(
+                    {
+                        "id": item["id"],
+                        "title": item["title"],
+                        "description": item.get("description", ""),
+                    }
+                )
+
+            payload["interactive"]["action"]["sections"].append(section_data)
+
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.post(self.url, headers=self.headers, json=data)
-
-            if response.status_code == 200:
-                self.logger.info(f"Interactive list sent to {phone_number}")
-                return response.json()
-            else:
-                self.logger.error(
-                    f"Failed to send interactive list to {phone_number}: {response.text}"
+                response = await client.post(
+                    self.url, headers=self.headers, json=payload
                 )
-                self.logger.error(f"Response status code: {response.status_code}")
-                return {"error": response.text}
+                response_data = response.json()
+
+                if response.status_code != 200:
+                    self._handle_api_error(
+                        response_data, phone_number, "interactive list"
+                    )
+                else:
+                    self.logger.info(f"Sent interactive list to {phone_number}")
+
+                return response_data
         except Exception as e:
-            self.logger.error(f"Exception sending interactive list: {str(e)}")
-            raise
+            error_msg = f"Exception sending interactive list: {str(e)}"
+            self.logger.error(error_msg)
+            return {"error": {"message": error_msg, "type": "Exception"}}
+
+    def _handle_api_error(
+        self,
+        response_data: Dict[str, Any],
+        phone_number: str,
+        content_type: str = "message",
+    ) -> None:
+        """
+        Handle and log WhatsApp API errors.
+
+        Args:
+            response_data: API response containing error details
+            phone_number: Recipient's phone number
+            content_type: Type of content that failed to send
+        """
+        error_info = response_data.get("error", {})
+        error_code = error_info.get("code")
+        error_message = error_info.get("message", "Unknown error")
+
+        if error_code == 131030:
+            # This is a common error in test environments when recipient isn't in the allowed list
+            error_details = "Recipient phone number not in allowed list. Add the number to test numbers in Meta developer portal."
+            self.logger.error(f"WhatsApp API Error {error_code}: {error_details}")
+        else:
+            self.logger.error(
+                f"Failed to send {content_type} to {phone_number}: {error_message} (Code: {error_code})"
+            )
+
+        self.logger.warning(
+            f"{content_type.capitalize()} not delivered to {phone_number} due to API error"
+        )
+
+    def _format_error_message(self, response_data: Dict[str, Any]) -> Dict[str, str]:
+        """
+        Format API error message for consistent error reporting.
+
+        Args:
+            response_data: API response containing error details
+
+        Returns:
+            Formatted error message
+        """
+        error_info = response_data.get("error", {})
+        error_code = error_info.get("code", "unknown")
+        error_message = error_info.get("message", "Unknown error")
+
+        return {"code": str(error_code), "message": error_message}

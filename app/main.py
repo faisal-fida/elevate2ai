@@ -1,19 +1,18 @@
+from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.params import Query
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
-
-from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.db import Base, engine, get_db
+from app.middleware import CustomJWTAuthMiddleware
 from app.api.webhook import verify_webhook, handle_message
 from app.api.auth.router import auth_router
-
-from .middleware import CustomJWTAuthMiddleware
-from app.db import Base, engine, get_db
 from app.services.auth.whatsapp import AuthService
 from app.services.common.logging import setup_logger
 
@@ -27,20 +26,25 @@ media_path.mkdir(exist_ok=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """
+    Application startup and shutdown events handler
+    - Creates database tables
+    - Ensures admin user exists
+    - Handles graceful shutdown
+    """
+    # Setup database
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database tables created.")
+    logger.info("Database tables created")
 
+    # Create admin user if needed
     async_db_session_gen = get_db()
-
     try:
-        db: AsyncSession = await async_db_session_gen.__anext__()  # Get a session
+        db: AsyncSession = await async_db_session_gen.__anext__()
         await AuthService.ensure_admin_exists(db)
-        logger.info("Admin user check complete.")
-    except StopAsyncIteration:
-        logger.error("Failed to get DB session for admin user creation during startup.")
+        logger.info("Admin user check complete")
     except Exception as e:
-        logger.error(f"Error during admin user creation at startup: {e}")
+        logger.error(f"Error during admin user creation: {e}")
     finally:
         try:
             await async_db_session_gen.aclose()
@@ -48,15 +52,17 @@ async def lifespan(app: FastAPI):
             pass
 
     yield
-    logger.info("Application shutdown.")
+    logger.info("Application shutdown")
 
 
+# Initialize FastAPI app
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description=settings.PROJECT_DESCRIPTION,
     lifespan=lifespan,
 )
 
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -66,6 +72,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Setup JWT authentication middleware
 app.add_middleware(
     CustomJWTAuthMiddleware,
     auto_error=True,
@@ -86,14 +93,17 @@ app.add_middleware(
 # Mount static media directory
 app.mount("/media", StaticFiles(directory="media"), name="media")
 
+# Include routers
 app.include_router(auth_router, prefix="/api")
 
 
+# Root endpoint
 @app.get("/", tags=["root"])
 async def root():
     return JSONResponse(content={"status": "ok"}, status_code=status.HTTP_200_OK)
 
 
+# WhatsApp webhook endpoints
 @app.get("/webhook")
 async def webhook_verification(
     hub_mode: str = Query(None, alias="hub.mode"),

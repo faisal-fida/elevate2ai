@@ -1,145 +1,57 @@
 import traceback
 from typing import Dict, Any
-from fastapi import APIRouter, Response, Query
+
+from fastapi import Response
 from app.config import settings
 from app.services.workflow.manager import WorkflowManager
 from app.services.common.logging import setup_logger, log_exception
 
-router = APIRouter()
 logger = setup_logger(__name__)
+workflow_manager = WorkflowManager()
 
-workflow_manager: WorkflowManager = WorkflowManager()
 
-
-@router.get("/webhook")
 async def verify_webhook(
-    hub_mode: str = Query(None, alias="hub.mode"),
-    hub_verify_token: str = Query(None, alias="hub.verify_token"),
-    hub_challenge: str = Query(None, alias="hub.challenge"),
+    hub_mode: str, hub_verify_token: str, hub_challenge: str
 ) -> Response:
+    """
+    Verify webhook request from WhatsApp API
+    """
     if hub_verify_token == settings.WHATSAPP_VERIFY_TOKEN:
         logger.info(f"Verified webhook with mode: {hub_mode}")
         return Response(content=hub_challenge, media_type="text/plain")
+
     logger.error("Webhook verification failed")
     return Response(content="Invalid verification token", status_code=403)
 
 
-@router.post("/webhook")
 async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
-    """Handle incoming WhatsApp messages"""
+    """
+    Process incoming WhatsApp message webhook
+    """
+    # Validate webhook data structure
     if data.get("object") != "whatsapp_business_account":
         logger.error(f"Invalid object in webhook data: {data.get('object')}")
         return {"status": "error", "message": "Invalid object"}
 
     try:
-        # Safely extract entry and changes
-        entries = data.get("entry", [])
-        if not entries:
-            logger.error("No entries in webhook data")
-            return {"status": "error", "message": "No entries in webhook data"}
-
-        entry = entries[0]
-        changes = entry.get("changes", [])
-        if not changes:
-            logger.error("No changes in webhook entry")
-            return {"status": "error", "message": "No changes in webhook entry"}
-
-        value = changes[0].get("value", {})
-
-        if not value or value.get("messaging_product") != "whatsapp":
-            logger.error(f"Invalid message format: {value}")
-            return {"status": "error", "message": "Invalid message format"}
-
-        messages = value.get("messages", [])
-        if not messages:
+        # Extract message data from webhook payload
+        message_data = extract_message_data(data)
+        if not message_data:
             return {"status": "success", "message": "Non-message event processed"}
 
-        message = messages[0]
-        sender_id = message.get("from")
-        message_type = message.get("type", "unknown")
-
-        logger.info(f"Received {message_type} message from {sender_id}")
-
-        if message_type == "interactive":
-            interactive = message.get("interactive", {})
-            if "button_reply" in interactive:
-                message_text = interactive.get("button_reply", {}).get("id", "")
-            elif "list_reply" in interactive:
-                message_text = interactive.get("list_reply", {}).get("id", "")
-            else:
-                logger.error(f"Unknown interactive message format: {interactive}")
-                return {
-                    "status": "error",
-                    "message": "Unknown interactive message format",
-                }
-        elif message_type in ["image", "video", "document"]:
-            # Extract media information
-            media_obj = message.get(message_type, {})
-            media_id = media_obj.get("id")
-            media_mime = media_obj.get("mime_type", "")
-            media_sha = media_obj.get("sha256", "")
-
-            if media_id:
-                logger.info(
-                    f"Received {message_type} with ID: {media_id}, mime: {media_mime}"
-                )
-                message_text = f"Received {message_type} with ID: {media_id}"
-
-                # Store additional metadata in context if needed
-                # This could be used later if we need to know more about the media
-                context = workflow_manager.state_manager.get_context(sender_id)
-
-                if "media_metadata" not in context:
-                    context["media_metadata"] = {}
-                elif not isinstance(context["media_metadata"], dict):
-                    context["media_metadata"] = {}
-
-                # Store media metadata in context
-                context["media_metadata"][media_id] = {
-                    "type": message_type,
-                    "mime_type": media_mime,
-                    "sha256": media_sha,
-                }
-                workflow_manager.state_manager.update_context(sender_id, context)
-            else:
-                logger.error(f"Missing media ID for {message_type} message")
-                return {
-                    "status": "error",
-                    "message": f"Missing media ID for {message_type} message",
-                }
-        elif message_type == "text":
-            message_text = message.get("text", {}).get("body", "")
-        else:
-            return {
-                "status": "success",
-                "message": f"Non-text message of type {message_type} acknowledged but not processed",
-            }
+        # Process the message
+        sender_id = message_data["sender_id"]
+        message_text = message_data["message_text"]
 
         if not sender_id or not message_text:
             logger.error(
-                f"Missing sender ID or message text. Sender: {sender_id}, Text: {message_text}"
+                f"Missing sender ID or message text: {sender_id}, {message_text}"
             )
-            return {
-                "status": "error",
-                "message": "Missing required message data",
-            }
+            return {"status": "error", "message": "Missing required message data"}
 
-        try:
-            await workflow_manager.process_message(sender_id, message_text)
-            logger.info(f"Successfully processed message from {sender_id}")
-            return {"status": "success", "message": "Message processed"}
-        except Exception as e:
-            error_msg = f"Error in workflow processing for sender {sender_id}"
-            log_exception(logger, error_msg, e)
-            return {
-                "status": "error",
-                "message": f"Workflow error: {str(e)}",
-                "error_details": {
-                    "type": str(type(e).__name__),
-                    "sender_id": sender_id,
-                    "message_type": message.get("type"),
-                },
-            }
+        await workflow_manager.process_message(sender_id, message_text)
+        logger.info(f"Successfully processed message from {sender_id}")
+        return {"status": "success", "message": "Message processed"}
 
     except Exception as e:
         error_msg = "Error processing webhook data"
@@ -152,3 +64,103 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
                 "traceback": traceback.format_exc(),
             },
         }
+
+
+def extract_message_data(data: Dict[Any, Any]) -> Dict[str, Any]:
+    """
+    Extract message data from webhook payload
+    Returns None for non-message events
+    """
+    try:
+        # Navigate through the webhook data structure
+        entries = data.get("entry", [])
+        if not entries:
+            logger.error("No entries in webhook data")
+            return None
+
+        entry = entries[0]
+        changes = entry.get("changes", [])
+        if not changes:
+            logger.error("No changes in webhook entry")
+            return None
+
+        value = changes[0].get("value", {})
+        if not value or value.get("messaging_product") != "whatsapp":
+            logger.error(f"Invalid message format: {value}")
+            return None
+
+        messages = value.get("messages", [])
+        if not messages:
+            return None
+
+        # Extract message details
+        message = messages[0]
+        sender_id = message.get("from")
+        message_type = message.get("type", "unknown")
+
+        # Handle different message types
+        if message_type == "interactive":
+            message_text = extract_interactive_message(message)
+        elif message_type in ["image", "video", "document"]:
+            message_text = handle_media_message(message, message_type, sender_id)
+        elif message_type == "text":
+            message_text = message.get("text", {}).get("body", "")
+        else:
+            logger.info(f"Unprocessed message type: {message_type}")
+            return None
+
+        return {
+            "sender_id": sender_id,
+            "message_text": message_text,
+            "message_type": message_type,
+        }
+
+    except Exception as e:
+        logger.error(f"Error extracting message data: {e}")
+        return None
+
+
+def extract_interactive_message(message: Dict[str, Any]) -> str:
+    """Extract text from interactive messages (buttons/lists)"""
+    interactive = message.get("interactive", {})
+
+    if "button_reply" in interactive:
+        return interactive.get("button_reply", {}).get("id", "")
+    elif "list_reply" in interactive:
+        return interactive.get("list_reply", {}).get("id", "")
+    else:
+        logger.error(f"Unknown interactive format: {interactive}")
+        return ""
+
+
+def handle_media_message(
+    message: Dict[str, Any], message_type: str, sender_id: str
+) -> str:
+    """Process media messages (images, videos, documents) and update context"""
+    media_obj = message.get(message_type, {})
+    media_id = media_obj.get("id")
+    media_mime = media_obj.get("mime_type", "")
+    media_sha = media_obj.get("sha256", "")
+
+    if not media_id:
+        logger.error(f"Missing media ID for {message_type} message")
+        return ""
+
+    logger.info(f"Received {message_type} with ID: {media_id}, mime: {media_mime}")
+
+    # Store media metadata in user context
+    context = workflow_manager.state_manager.get_context(sender_id)
+
+    if "media_metadata" not in context:
+        context["media_metadata"] = {}
+    elif not isinstance(context["media_metadata"], dict):
+        context["media_metadata"] = {}
+
+    context["media_metadata"][media_id] = {
+        "type": message_type,
+        "mime_type": media_mime,
+        "sha256": media_sha,
+    }
+
+    workflow_manager.state_manager.update_context(sender_id, context)
+    return f"Received {message_type} with ID: {media_id}"
