@@ -1,15 +1,17 @@
 import asyncio
 import random
-from app.services.messaging.state_manager import WorkflowState, StateManager
+from typing import Optional
+from app.services.messaging.client import MessagingClient
+from app.services.messaging.state_manager import StateManager, WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
 from app.constants import MESSAGES, TEMPLATE_CONFIG
 from app.services.common.types import WorkflowContext
+from app.services.messaging.media_utils import cleanup_client_media
 from app.services.content.switchboard import create_image
 from app.services.content.template_utils import (
     validate_template_inputs,
     build_template_payload,
 )
-from app.services.messaging.client import MessagingClient
 
 
 class ExecutionHandler(BaseHandler):
@@ -488,6 +490,10 @@ class ExecutionHandler(BaseHandler):
         else:
             # All platforms failed
             await self.send_message(client_id, MESSAGES["post_failure"])
+
+        # Clean up media files for this client
+        cleanup_client_media(client_id)
+        self.logger.info(f"Media files cleaned up for client {client_id}")
 
         # Reset the workflow
         self.state_manager.reset_client(client_id)
