@@ -56,8 +56,12 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
 
         message = messages[0]
         sender_id = message.get("from")
+        message_type = message.get("type", "unknown")
 
-        if message.get("type") == "interactive":
+        logger.info(f"Received {message_type} message from {sender_id}")
+        logger.debug(f"Message data: {message}")
+
+        if message_type == "interactive":
             interactive = message.get("interactive", {})
             if "button_reply" in interactive:
                 message_text = interactive.get("button_reply", {}).get("id", "")
@@ -69,27 +73,45 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
                     "status": "error",
                     "message": "Unknown interactive message format",
                 }
-        else:
-            if message.get("type") != "text":
-                message_type = message.get("type", "unknown")
-                if message_type in ["image", "video", "document"]:
-                    media_id = message.get(message_type, {}).get("id")
-                    if media_id:
-                        logger.info(f"Received {message_type} with ID: {media_id}")
-                        message_text = f"Received {message_type} with ID: {media_id}"
-                    else:
-                        logger.error(f"Missing media ID for {message_type} message")
-                        return {
-                            "status": "error",
-                            "message": f"Missing media ID for {message_type} message",
-                        }
-                else:
-                    return {
-                        "status": "success",
-                        "message": f"Non-text message of type {message_type} ignored",
-                    }
+        elif message_type in ["image", "video", "document"]:
+            # Extract media information
+            media_obj = message.get(message_type, {})
+            media_id = media_obj.get("id")
+            media_mime = media_obj.get("mime_type", "")
+            media_sha = media_obj.get("sha256", "")
+
+            if media_id:
+                logger.info(
+                    f"Received {message_type} with ID: {media_id}, mime: {media_mime}"
+                )
+                # Create a special message format that our handlers can detect
+                message_text = f"Received {message_type} with ID: {media_id}"
+
+                # Store additional metadata in context if needed
+                # This could be used later if we need to know more about the media
+                context = workflow_manager.state_manager.get_context(sender_id)
+                if "media_metadata" not in context:
+                    context["media_metadata"] = {}
+                context["media_metadata"][media_id] = {
+                    "type": message_type,
+                    "mime_type": media_mime,
+                    "sha256": media_sha,
+                }
+                workflow_manager.state_manager.update_context(sender_id, context)
             else:
-                message_text = message.get("text", {}).get("body", "")
+                logger.error(f"Missing media ID for {message_type} message")
+                return {
+                    "status": "error",
+                    "message": f"Missing media ID for {message_type} message",
+                }
+        elif message_type == "text":
+            message_text = message.get("text", {}).get("body", "")
+        else:
+            # Handle other message types or ignore them
+            return {
+                "status": "success",
+                "message": f"Non-text message of type {message_type} acknowledged but not processed",
+            }
 
         if not sender_id or not message_text:
             logger.error(
@@ -102,7 +124,7 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
 
         try:
             await workflow_manager.process_message(sender_id, message_text)
-            logger.info(f"Got message from {sender_id}: {message_text}")
+            logger.info(f"Successfully processed message from {sender_id}")
             return {"status": "success", "message": "Message processed"}
         except Exception as e:
             error_msg = f"Error in workflow processing for sender {sender_id}"

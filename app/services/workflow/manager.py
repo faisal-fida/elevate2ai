@@ -13,6 +13,7 @@ from app.services.workflow.handlers.platform_selection_for_content import (
 from app.services.workflow.handlers.caption import CaptionHandler
 from app.services.workflow.handlers.scheduling import SchedulingHandler
 from app.services.workflow.handlers.execution import ExecutionHandler
+from app.services.messaging.media_utils import retrieve_media_url, download_media_file
 
 
 class WorkflowManager:
@@ -57,6 +58,16 @@ class WorkflowManager:
                 f"Message processor already running for client {client_id}"
             )
 
+    async def retrieve_media(self, media_id: str, media_type: str = "image") -> str:
+        """Retrieve a media file from WhatsApp using its Media ID and return the URL."""
+        self.logger.info(f"Retrieving {media_type} with ID: {media_id}")
+        return await retrieve_media_url(media_id)
+
+    async def download_media(self, media_id: str, media_type: str = "image") -> str:
+        """Download a media file from WhatsApp and save it locally."""
+        self.logger.info(f"Downloading {media_type} with ID: {media_id}")
+        return await download_media_file(media_id, media_type)
+
     async def _message_processor(self, client_id: str) -> None:
         """Process messages from the queue for a specific client."""
         queue = self._get_message_queue(client_id)
@@ -88,6 +99,34 @@ class WorkflowManager:
                     WorkflowState.WAITING_FOR_MEDIA_UPLOAD: self.caption_handler.handle,
                     WorkflowState.VIDEO_SELECTION: self.caption_handler.handle,
                 }
+
+                # Handle media IDs in message
+                if message_text.startswith(
+                    "Received image with ID:"
+                ) or message_text.startswith("Received video with ID:"):
+                    is_video = "video" in message_text
+                    media_type = "video" if is_video else "image"
+                    media_id = message_text.split("ID:")[-1].strip()
+
+                    # Process according to the current state
+                    if current_state == WorkflowState.WAITING_FOR_MEDIA_UPLOAD:
+                        # Get media URL using our utility function
+                        media_url = await retrieve_media_url(media_id)
+
+                        if media_url:
+                            # Create a proper URL message for the handler
+                            message_text = media_url
+                            self.logger.info(
+                                f"Successfully retrieved {media_type} URL: {media_url[:50]}..."
+                            )
+                        else:
+                            # Notify user of the failure
+                            await self.send_message(
+                                client_id,
+                                f"I couldn't process your {media_type}. Please try uploading it again.",
+                            )
+                            queue.task_done()
+                            continue
 
                 # Get the appropriate handler for the current state
                 handler = handler_map.get(current_state)
@@ -151,4 +190,4 @@ class WorkflowManager:
 
     async def send_message(self, client_id: str, message: str) -> None:
         """Send a message to the client"""
-        await self.whatsapp.send_message(client_id, message)
+        await self.whatsapp.send_message(message, client_id)
