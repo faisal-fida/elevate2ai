@@ -1,7 +1,7 @@
 import httpx
 from typing import Dict, List, Any
-from app.config import settings
 from app.constants import SOCIAL_MEDIA_PLATFORMS, TEMPLATE_CONFIG
+from app.config import settings, MEDIA_BASE_URL  # noqa: F401
 from app.services.common.logging import setup_logger
 
 
@@ -214,7 +214,10 @@ def create_image(
                 url = template_data[key]
                 if url.startswith("/"):
                     # Convert relative URL to absolute URL
-                    template_data[key] = f"{settings.BASE_URL.rstrip('/')}{url}"
+                    # template_data[key] = f"{MEDIA_BASE_URL}{url}"
+                    template_data[key] = (
+                        "https://images.unsplash.com/photo-1454496522488-7a8e488e8606"
+                    )
 
         # Use the template client ID for payload generation
         payload = canvas.get_payload(

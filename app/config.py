@@ -1,3 +1,4 @@
+import urllib.parse
 from typing import List, Literal
 from pydantic import AnyHttpUrl, Field
 from pydantic_settings import BaseSettings
@@ -69,3 +70,5 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+MEDIA_BASE_URL = urllib.parse.urljoin("https://", settings.BASE_URL)

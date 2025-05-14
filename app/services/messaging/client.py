@@ -11,7 +11,7 @@ import re
 from typing import Dict, Any, Optional, Union, List
 from app.services.common.logging import setup_logger
 from app.services.common.types import MediaItem, ButtonItem, SectionItem
-from app.config import settings
+from app.config import MEDIA_BASE_URL  # noqa: F401
 
 
 class MessagingClient:
@@ -125,8 +125,6 @@ class WhatsApp(MessagingClient):
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.token}",
         }
-        # Base URL for media files (used to convert relative URLs to absolute)
-        self.media_base_url = settings.BASE_URL.rstrip("/")
 
     def preprocess(self, data: Dict[Any, Any]) -> Dict[Any, Any]:
         """Preprocess webhook data before handling"""
@@ -192,27 +190,6 @@ class WhatsApp(MessagingClient):
 
         return responses
 
-    def _convert_to_absolute_url(self, url: str) -> str:
-        """
-        Convert relative URLs to absolute URLs.
-
-        Args:
-            url: The URL to convert
-
-        Returns:
-            Absolute URL
-        """
-        # If it's already an absolute URL, return it as is
-        if url.startswith(("http://", "https://")):
-            return url
-
-        # If it's a relative URL starting with /, convert it to absolute
-        if url.startswith("/"):
-            return f"{self.media_base_url}{url}"
-
-        # Otherwise, assume it's a relative path and add both / and base URL
-        return f"{self.media_base_url}/{url}"
-
     async def _send_single_media_item(
         self,
         client: httpx.AsyncClient,
@@ -234,8 +211,12 @@ class WhatsApp(MessagingClient):
             self.logger.error(f"Missing URL for {media_type}")
             return {"error": f"Missing URL for {media_type}"}
 
-        # Convert relative URLs to absolute URLs
-        url = self._convert_to_absolute_url(item.get("url", ""))
+        url = item.get("url")
+        if url.startswith("/"):
+            # url = f"{MEDIA_BASE_URL}{url}" # TODO: Uncomment this line
+            url = "https://images.unsplash.com/photo-1454496522488-7a8e488e8606"
+        else:
+            self.logger.info(f"URL is already absolute: {url}")
 
         # Validate the URL format
         if not re.match(r"^https?://", url):
