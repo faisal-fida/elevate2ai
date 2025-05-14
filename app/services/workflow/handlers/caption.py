@@ -293,6 +293,15 @@ class CaptionHandler(BaseHandler):
         """Handle destination name input"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
+        # Check if this is a document message
+        if "received document with id:" in message.lower():
+            # This is a document message, not a destination name
+            await self.send_message(
+                client_id,
+                "I need a text name for your destination, not a document. Please enter the destination name (5 words or less):",
+            )
+            return
+
         # Validate the destination name
         is_valid, result = self.content_generator.openai_service.validate_user_input(
             message, max_words=5
@@ -315,6 +324,15 @@ class CaptionHandler(BaseHandler):
         """Handle event name input"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
+        # Check if this is a document message
+        if "received document with id:" in message.lower():
+            # This is a document message, not an event name
+            await self.send_message(
+                client_id,
+                "I need a text name for your event, not a document. Please enter the event name (5 words or less):",
+            )
+            return
+
         # Validate the event name
         is_valid, result = self.content_generator.openai_service.validate_user_input(
             message, max_words=5
@@ -336,6 +354,15 @@ class CaptionHandler(BaseHandler):
     async def handle_price_input(self, client_id: str, message: str) -> None:
         """Handle price input"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
+
+        # Check if this is a document message
+        if "received document with id:" in message.lower():
+            # This is a document message, not a price
+            await self.send_message(
+                client_id,
+                "I need text for your price information, not a document. Please enter the price or promotion details (e.g., '$99', '50% off'):",
+            )
+            return
 
         # Store the price text
         context.price_text = message

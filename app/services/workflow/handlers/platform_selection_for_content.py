@@ -12,8 +12,32 @@ class PlatformSelectionForContentHandler(BaseHandler):
         """Handle platform selection for content type"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
+        # Handle "all" option
+        if message == "all":
+            # Select all supported platforms
+            context.selected_platforms = context.supported_platforms.copy()
+
+            # Store the content type for all platforms
+            for platform in context.selected_platforms:
+                context.content_types[platform] = context.selected_content_type
+
+            self.state_manager.update_context(client_id, context.model_dump())
+
+            # Send confirmation message
+            platforms_str = ", ".join(
+                platform.capitalize() for platform in context.selected_platforms
+            )
+            await self.send_message(
+                client_id, f"You've selected all platforms: {platforms_str}"
+            )
+
+            # Move to caption input
+            self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
+            await self.send_message(
+                client_id, "Great! Now, please enter the caption for your post."
+            )
         # Check if this is a valid platform selection
-        if message in context.supported_platforms:
+        elif message in context.supported_platforms:
             # Add to selected platforms if not already there
             if message not in context.selected_platforms:
                 context.selected_platforms.append(message)
@@ -39,7 +63,11 @@ class PlatformSelectionForContentHandler(BaseHandler):
                 await self.send_message(
                     client_id, "Please select at least one platform before proceeding."
                 )
-                await self.send_platform_options(client_id)
+                await self.send_platform_options(
+                    client_id,
+                    context.selected_content_type,
+                    context.supported_platforms,
+                )
                 return
 
             # Move to caption input
@@ -53,7 +81,9 @@ class PlatformSelectionForContentHandler(BaseHandler):
                 client_id,
                 f"Sorry, '{message}' is not a valid platform for {context.selected_content_type} content.",
             )
-            await self.send_platform_options(client_id)
+            await self.send_platform_options(
+                client_id, context.selected_content_type, context.supported_platforms
+            )
 
     async def ask_add_more_platforms(self, client_id: str) -> None:
         """Ask if the user wants to add more platforms"""

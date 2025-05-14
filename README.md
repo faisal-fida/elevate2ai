@@ -2,53 +2,65 @@
 
 ## Project Overview
 
-Elevate2AI is a WhatsApp-based content generation and social media scheduling service built with FastAPI. Users interact via WhatsApp to generate engaging promotional captions, optionally include images, select platforms, schedule posts, and then automatically post to supported social media platforms.
+Elevate2AI is a WhatsApp-based content generation and social media scheduling service built with FastAPI. Users interact via WhatsApp to generate engaging promotional captions, select platforms, include media (images or videos), schedule posts, and automatically publish to supported social media platforms.
 
 ## Features
 
-- Interactive WhatsApp conversation for content creation  
-- AI-generated captions with approval and regeneration options  
-- Optional image inclusion via Pexels, Unsplash, Pixabay, and Switchboard Canvas API  
-- Multi-platform support: Instagram, LinkedIn, TikTok (or All)  
-- Content scheduling and automated posting  
-- Secure authentication and admin user management  
-- Session handling with refresh and revoke tokens  
+- Interactive WhatsApp conversation for content creation
+- AI-generated captions with approval and regeneration options
+- Media handling:
+  - Upload your own images/videos directly through WhatsApp
+  - Search for stock images via Pexels, Unsplash, and Pixabay
+  - Search for videos via Pexels and Pixabay
+- Template-based content generation with dynamic fields
+- Multi-platform support: Instagram, LinkedIn, TikTok
+- Content scheduling and automated posting
+- Secure authentication and admin user management
+- Session handling with refresh and revoke tokens
 
 ## Technology Stack
 
-- Python 3.12+  
-- FastAPI + Uvicorn  
-- SQLAlchemy (async) + SQLite  
-- Pydantic & Pydantic-Settings  
-- HTTPX for external API calls  
-- OpenAI API for caption and search query generation  
-- Switchboard Canvas API for post image creation  
-- WhatsApp Business API for messaging  
+- Python 3.12+
+- FastAPI + Uvicorn
+- SQLAlchemy 2.0 (async) + SQLite
+- Pydantic v2 & Pydantic-Settings
+- HTTPX for external API calls and WhatsApp media handling
+- OpenAI API for caption and search query generation
+- Switchboard Canvas API for post image creation
+- WhatsApp Business API for messaging
 
 ## Prerequisites
 
-- Python 3.12 or higher  
-- WhatsApp Business API credentials  
-- API keys for:  
-  - Pexels  
-  - Unsplash  
-  - Pixabay  
-  - Switchboard Canvas  
-  - OpenAI  
+- Python 3.12 or higher
+- WhatsApp Business API credentials
+- API keys for:
+  - Pexels
+  - Unsplash
+  - Pixabay
+  - Switchboard Canvas
+  - OpenAI
 
 ## Installation
 
 ```bash
+# Clone the repository
 git clone https://github.com/your-org/elevate2ai.git
 cd elevate2ai
+
+# Create and activate virtual environment
 python -m venv venv
-source venv/bin/activate
-pip install -r [`requirements.txt`](requirements.txt:1)
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies using uv (recommended)
+uv sync
+
+# Or with pip (fallback)
+pip install -r requirements.txt
 ```
 
 ## Environment Variables
 
-Create a [`.env`](.env:1) file in the project root with the following variables:
+Create a `.env` file in the project root with the following variables:
 
 ```
 PROJECT_NAME=Elevate2AI
@@ -91,64 +103,122 @@ TRUSTED_HOSTS=*
 Start the FastAPI server:
 
 ```bash
-python [`run.py`](run.py:1)
+python run.py
 ```
 
 The API will be available at `http://127.0.0.1:8000`.
 
 ## WhatsApp Webhook Setup
 
-1. Expose your local server (e.g., using ngrok):  
+1. Expose your local server (e.g., using ngrok):
    ```bash
    ngrok http 8000
    ```
-2. Set the webhook URL in your WhatsApp Business dashboard to:  
+2. Set the webhook URL in your WhatsApp Business dashboard to:
    `https://<your-ngrok-url>/webhook`
 3. Use the `WHATSAPP_VERIFY_TOKEN` for verification.
+
+## Project Structure
+
+```
+app/
+├── api/                    # API endpoints and routes
+│   ├── auth.py            # Authentication endpoints
+│   └── webhook.py         # WhatsApp webhook handling
+├── constants/             # Application constants
+├── services/
+│   ├── common/            # Common utilities
+│   │   ├── logging.py     # Logging configuration
+│   │   └── types.py       # Type definitions and Pydantic models
+│   ├── content/           # Content generation services
+│   │   ├── generator.py   # AI caption generation
+│   │   └── image_service.py # Media search and retrieval
+│   ├── messaging/         # Messaging services
+│   │   ├── client.py      # WhatsApp client
+│   │   ├── media_utils.py # Media handling utilities
+│   │   └── state_manager.py # Conversation state management
+│   └── workflow/          # Workflow handlers
+│       ├── handlers/      # State-specific handlers
+│       └── manager.py     # Main workflow orchestration
+├── config.py              # Application configuration
+└── main.py                # FastAPI application setup
+```
 
 ## Workflow Overview
 
 Users interact with the bot through a multi-step state machine:
 
-1. INIT: User sends "Hi" or "Hello".  
-2. CONTENT_TYPE_SELECTION: Bot asks for content type.  
-3. PLATFORM_SELECTION_FOR_CONTENT: Bot presents platform options.  
-4. CAPTION_INPUT: Bot asks for promotional text.  
-5. CAPTION_GENERATION: Bot generates caption and asks for approval.  
-   - If user replies `n`, regenerates variation.  
-   - If user replies `y`, proceeds.  
-6. IMAGE_INCLUSION_DECISION: Bot asks if user wants to include images.  
-   - `yes`: generates or searches images and presents options.  
-   - `no`: skips to scheduling.  
-7. SCHEDULE_SELECTION: Bot prompts for post date/time.  
-   - Validates input or re-prompts on invalid.  
-8. CONFIRMATION: Bot shows a summary:  
-   ```
-   Content Type: {content_type}
-   Platforms: {platforms}
-   Schedule: {schedule}
-   Caption: {caption}
-   ```  
-   - User confirms with `y`.  
-   - Or cancels/restarts on `n`.  
-9. POST_EXECUTION: Bot posts content via ExecutionHandler:  
-   - Immediate or scheduled posting to selected platforms.  
-   - Uses SwitchboardCanvas for image rendering.  
-   - Provides success/failure summary.  
+1. **INIT**: User sends "Hi" or "Hello" to start the conversation.
+2. **CONTENT_TYPE_SELECTION**: Bot asks for content type (events, destination, promo, etc.).
+3. **PLATFORM_SELECTION_FOR_CONTENT**: Bot presents platform options based on content type.
+4. **CAPTION_INPUT**: Bot asks for promotional text.
+5. **CAPTION_GENERATION**: Bot generates caption and asks for approval.
+   - If user replies `n`, regenerates variation.
+   - If user replies `y`, proceeds.
+6. **MEDIA_SOURCE_SELECTION**: Bot asks if user wants to upload media or search for stock media.
+   - **WAITING_FOR_MEDIA_UPLOAD**: If upload selected, bot waits for media attachment.
+   - If search selected, bot presents media options from stock libraries.
+7. **SCHEDULE_SELECTION**: Bot prompts for post date/time.
+8. **CONFIRMATION**: Bot shows a summary and asks for final confirmation.
+9. **POST_EXECUTION**: Bot posts content to selected platforms.
+
+## Media Handling
+
+The application supports both image and video content:
+
+1. **Media Upload**: Users can upload media directly through WhatsApp.
+   - The application extracts media IDs from WhatsApp messages.
+   - Media URLs are retrieved using the WhatsApp Graph API.
+   - Media can be downloaded locally if needed.
+
+2. **Media Search**: Users can search for stock media.
+   - Images are searched across Pexels, Unsplash, and Pixabay.
+   - Videos are searched across Pexels and Pixabay.
+
+3. **Template Requirements**: The application handles template-specific media requirements.
+   - When a template requires specific fields (e.g., `event_image`), the system automatically maps uploaded or selected media to these fields.
+
+## Context Management
+
+The application uses a Pydantic-based `WorkflowContext` model to maintain conversation state:
+
+- Core content fields (caption, content type)
+- Platform selection information
+- Media fields (selected images/videos, URLs)
+- Template-specific fields
+- Platform-specific outputs
+- Workflow control and status tracking
 
 ## API Endpoints
 
 ### Authentication
 
-- `POST /api/auth/register`: Register a new user.  
-- `POST /api/auth/login`: Login and obtain tokens.  
-- `POST /api/auth/session/refresh`: Refresh access token.  
-- `POST /api/auth/session/revoke`: Revoke current session.  
+- `POST /api/auth/register`: Register a new user.
+- `POST /api/auth/login`: Login and obtain tokens.
+- `POST /api/auth/session/refresh`: Refresh access token.
+- `POST /api/auth/session/revoke`: Revoke current session.
 
 ### Webhook
 
-- `GET /webhook`: Webhook verification.  
-- `POST /webhook`: Process incoming WhatsApp messages.  
+- `GET /webhook`: Webhook verification.
+- `POST /webhook`: Process incoming WhatsApp messages.
+
+## Development
+
+### Package Management
+
+This project uses `uv` for dependency management:
+
+```bash
+# Add or upgrade dependencies
+uv add <package>
+
+# Remove dependencies
+uv remove <package>
+
+# Reinstall all dependencies from lock file
+uv sync
+```
 
 ## Logs
 
