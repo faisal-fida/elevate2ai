@@ -2,7 +2,7 @@ import asyncio
 import random
 from app.services.messaging.state_manager import WorkflowState, StateManager
 from app.services.workflow.handlers.base import BaseHandler
-from app.constants import MESSAGES
+from app.constants import MESSAGES, TEMPLATE_CONFIG
 from app.services.common.types import WorkflowContext
 from app.services.content.switchboard import create_image
 from app.services.content.template_utils import (
@@ -92,7 +92,7 @@ class ExecutionHandler(BaseHandler):
         # Handle both button responses and text responses
         if message in ["yes_images", "yes", "y", "yes include images"]:
             context.include_images = True
-            self.state_manager.update_context(client_id, vars(context))
+            self.state_manager.update_context(client_id, context.model_dump())
 
             # Move to appropriate state for generating images
             self.state_manager.set_state(client_id, WorkflowState.POST_EXECUTION)
@@ -101,7 +101,7 @@ class ExecutionHandler(BaseHandler):
             await self.generate_platform_images(client_id)
         elif message in ["no_images", "no", "n", "no caption only"]:
             context.include_images = False
-            self.state_manager.update_context(client_id, vars(context))
+            self.state_manager.update_context(client_id, context.model_dump())
 
             # Move to post execution state for posting without images
             self.state_manager.set_state(client_id, WorkflowState.POST_EXECUTION)
@@ -176,7 +176,7 @@ class ExecutionHandler(BaseHandler):
         # Clear the waiting flag
         context.waiting_for_image_decision = False
         self.logger.info(f"Setting waiting_for_image_decision=False for {client_id}")
-        self.state_manager.update_context(client_id, vars(context))
+        self.state_manager.update_context(client_id, context.model_dump())
 
         # Generate platform-specific images using Switchboard Canvas
         await self.send_message(client_id, "Editing images for each platform...")
@@ -214,6 +214,17 @@ class ExecutionHandler(BaseHandler):
                     # Add event_image if it exists
                     if hasattr(context, "event_image") and context.event_image:
                         template_data["event_image"] = context.event_image
+                    # If event_image is required but not set, use selected_image
+                    elif context.selected_image:
+                        # Check if this template requires event_image
+                        template_id = f"{platform}_351915950259_{content_type}"  #! TODO: remove hardcoded template_id
+                        template = TEMPLATE_CONFIG["templates"].get(template_id, {})
+                        required_keys = template.get("required_keys", [])
+                        if "event_image" in required_keys:
+                            template_data["event_image"] = context.selected_image
+                            self.logger.info(
+                                f"Using selected_image as event_image for template compatibility"
+                            )
 
                     # Validate inputs for this template
                     # template_id = f"{platform}_{client_id}_{content_type}"
@@ -265,7 +276,7 @@ class ExecutionHandler(BaseHandler):
                     context.platform_images[platform] = context.selected_image
 
             # Update context with generated images
-            self.state_manager.update_context(client_id, vars(context))
+            self.state_manager.update_context(client_id, context.model_dump())
 
             await self.send_message(
                 client_id, "Here are the edited images for each platform:"
@@ -383,7 +394,7 @@ class ExecutionHandler(BaseHandler):
                         context.platform_images[platform] = context.selected_video
 
             # Update context with generated videos
-            self.state_manager.update_context(client_id, vars(context))
+            self.state_manager.update_context(client_id, context.model_dump())
 
             await self.send_message(
                 client_id, "Here are the edited videos for each platform:"
@@ -430,7 +441,16 @@ class ExecutionHandler(BaseHandler):
         failed_platforms = []
 
         for platform in context.selected_platforms:
+            # Get media URL with fallbacks
             media_url = context.platform_images.get(platform)
+
+            # If no platform-specific image, use the selected image/video
+            if not media_url:
+                if is_video_content and context.selected_video:
+                    media_url = context.selected_video
+                elif context.selected_image:
+                    media_url = context.selected_image
+
             self.logger.info(
                 f"Posting to {platform} with {media_type} URL: {media_url}"
             )
@@ -447,7 +467,7 @@ class ExecutionHandler(BaseHandler):
                     context.post_status = {}
                 context.post_status[platform] = False
 
-        self.state_manager.update_context(client_id, vars(context))
+        self.state_manager.update_context(client_id, context.model_dump())
 
         # Send result message
         if success_platforms and not failed_platforms:

@@ -9,44 +9,47 @@ class SchedulingHandler(BaseHandler):
     """Handler for schedule selection state"""
 
     async def handle(self, client_id: str, message: str) -> None:
-        """Handle schedule selection"""
+        """Handle scheduling selection"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
-        if message in ["1", "2", "3", "4"]:
-            # Store the selected image (only if we're including images)
-            if getattr(context, "include_images", True):
-                idx = int(message) - 1
-                if 0 <= idx < len(context.image_urls):
-                    context.selected_image = context.image_urls[idx]
-                    self.state_manager.update_context(client_id, vars(context))
-
-                    # Send scheduling options
-                    await self.send_scheduling_options(client_id)
-                else:
-                    await self.send_message(
-                        client_id, "Please select a valid image number (1-4)."
-                    )
-            else:
-                # If we're not including images, just inform the user and continue to scheduling
-                await self.send_message(
-                    client_id,
-                    "You've chosen not to include images. Let's schedule your post.",
-                )
-                await self.send_scheduling_options(client_id)
-
-        elif message in ["now", "later", "tomorrow", "next week"]:
-            # Store the schedule
-            context.schedule_time = message
-            self.state_manager.update_context(client_id, vars(context))
+        # Process the schedule selection
+        if message.lower() in ["1", "now", "post now"]:
+            context.schedule_time = "now"
+            self.state_manager.update_context(client_id, context.model_dump())
 
             # Move to confirmation
             self.state_manager.set_state(client_id, WorkflowState.CONFIRMATION)
-
-            # Send confirmation summary (which will then lead to image inclusion question)
             await self.send_confirmation_summary(client_id, context)
+
+        elif message.lower() in ["2", "later", "later today"]:
+            context.schedule_time = "later today"
+            self.state_manager.update_context(client_id, context.model_dump())
+
+            # Move to confirmation
+            self.state_manager.set_state(client_id, WorkflowState.CONFIRMATION)
+            await self.send_confirmation_summary(client_id, context)
+
+        elif message.lower() in ["3", "tomorrow"]:
+            context.schedule_time = "tomorrow"
+            self.state_manager.update_context(client_id, context.model_dump())
+
+            # Move to confirmation
+            self.state_manager.set_state(client_id, WorkflowState.CONFIRMATION)
+            await self.send_confirmation_summary(client_id, context)
+
+        elif message.lower() in ["4", "next week"]:
+            context.schedule_time = "next week"
+            self.state_manager.update_context(client_id, context.model_dump())
+
+            # Move to confirmation
+            self.state_manager.set_state(client_id, WorkflowState.CONFIRMATION)
+            await self.send_confirmation_summary(client_id, context)
+
         else:
+            # Invalid selection
             await self.send_message(
-                client_id, "Please select a valid scheduling option."
+                client_id,
+                "Please select a valid scheduling option: 'now', 'later today', 'tomorrow', or 'next week'.",
             )
             await self.send_scheduling_options(client_id)
 

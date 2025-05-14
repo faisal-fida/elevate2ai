@@ -46,9 +46,7 @@ class StateManager:
 
     def set_state(self, client_id: str, state: WorkflowState) -> None:
         """Set state for a client."""
-        self.logger.warning(
-            f"Setting state for {client_id} to {state.name} with context {self.client_contexts.get(client_id)}"
-        )
+        self.logger.info(f"Setting state for {client_id} to {state.name}")
         self.client_states[client_id] = state
 
     def get_context(self, client_id: str) -> Dict[str, Any]:
@@ -64,6 +62,11 @@ class StateManager:
     def update_context(self, client_id: str, updates: Dict[str, Any]) -> None:
         """Update context data for a client."""
         context = self.get_context(client_id)
+
+        # Handle Pydantic models by converting to dict if needed
+        if hasattr(updates, "model_dump"):
+            updates = updates.model_dump()
+
         context.update(updates)
         self.set_context(client_id, context)
 

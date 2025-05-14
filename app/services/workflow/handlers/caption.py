@@ -64,7 +64,37 @@ class CaptionHandler(BaseHandler):
         # Store the caption
         context.caption = message
         context.original_text = message
-        self.state_manager.update_context(client_id, vars(context))
+        self.state_manager.update_context(client_id, context.model_dump())
+
+        # Find appropriate template
+        if not context.template_id:
+            for platform in context.selected_platforms:
+                template_id = self.content_generator.get_template_by_platform_and_type(
+                    platform=platform,
+                    content_type=context.selected_content_type,
+                    client_id=client_id,
+                )
+                if template_id:
+                    context.template_id = template_id
+                    context.template_type = context.selected_content_type
+
+                    # Check template requirements
+                    template = TEMPLATE_CONFIG["templates"].get(template_id, {})
+                    required_keys = template.get("required_keys", [])
+
+                    # If we already have a selected_image and template needs event_image, set it
+                    if (
+                        "event_image" in required_keys
+                        and context.selected_image
+                        and not context.event_image
+                    ):
+                        context.event_image = context.selected_image
+                        self.logger.info(
+                            "Setting event_image to selected_image for template compatibility"
+                        )
+
+                    self.state_manager.update_context(client_id, context.model_dump())
+                    break
 
         # Check if we need to collect template-specific fields first
         if await self.request_template_fields(client_id):
@@ -74,21 +104,6 @@ class CaptionHandler(BaseHandler):
         await self.send_message(client_id, MESSAGES["generating"])
 
         try:
-            if not context.template_id:
-                # Find appropriate template
-                for platform in context.selected_platforms:
-                    template_id = (
-                        self.content_generator.get_template_by_platform_and_type(
-                            platform=platform,
-                            content_type=context.selected_content_type,
-                            client_id=client_id,
-                        )
-                    )
-                    if template_id:
-                        context.template_id = template_id
-                        context.template_type = context.selected_content_type
-                        break
-
             if not context.template_id:
                 # Fallback to regular content generation
                 caption, image_urls = await self.content_generator.generate_content(
@@ -111,6 +126,16 @@ class CaptionHandler(BaseHandler):
                     user_inputs["price_text"] = context.price_text
                 if context.event_image:
                     user_inputs["event_image"] = context.event_image
+                elif context.selected_image:
+                    # If template needs event_image and we have selected_image, use it
+                    template = TEMPLATE_CONFIG["templates"].get(context.template_id, {})
+                    required_keys = template.get("required_keys", [])
+                    if "event_image" in required_keys:
+                        user_inputs["event_image"] = context.selected_image
+                        context.event_image = context.selected_image
+                        self.logger.info(
+                            "Using selected_image as event_image for template"
+                        )
 
                 # Generate content using template
                 (
@@ -156,7 +181,7 @@ class CaptionHandler(BaseHandler):
 
         # Ask about media selection
         context.waiting_for_image_decision = True
-        self.state_manager.update_context(client_id, vars(context))
+        self.state_manager.update_context(client_id, context.model_dump())
 
         await self.ask_media_selection(client_id)
 
@@ -214,6 +239,18 @@ class CaptionHandler(BaseHandler):
         template = TEMPLATE_CONFIG["templates"].get(context.template_id, {})
         required_keys = template.get("required_keys", [])
 
+        # If event_image is required and we have selected_image, use that
+        if (
+            "event_image" in required_keys
+            and not context.event_image
+            and context.selected_image
+        ):
+            context.event_image = context.selected_image
+            self.logger.info(
+                "Using selected_image as event_image for template compatibility"
+            )
+            self.state_manager.update_context(client_id, context.model_dump())
+
         # Check for required fields in order of priority
         if "destination_name" in required_keys and not context.destination_name:
             self.state_manager.set_state(
@@ -241,6 +278,15 @@ class CaptionHandler(BaseHandler):
             )
             return True
 
+        # Only ask for event_image if we don't already have it from selected_image
+        if "event_image" in required_keys and not context.event_image:
+            # We'll need to ask for an image upload
+            await self.send_message(client_id, "Please upload an image for your event:")
+            self.state_manager.set_state(
+                client_id, WorkflowState.WAITING_FOR_MEDIA_UPLOAD
+            )
+            return True
+
         return False  # No additional inputs needed
 
     async def handle_destination_input(self, client_id: str, message: str) -> None:
@@ -257,7 +303,7 @@ class CaptionHandler(BaseHandler):
             return
 
         context.destination_name = result
-        self.state_manager.update_context(client_id, vars(context))
+        self.state_manager.update_context(client_id, context.model_dump())
 
         await self.send_message(client_id, f"Great! Destination name '{result}' saved.")
 
@@ -279,7 +325,7 @@ class CaptionHandler(BaseHandler):
             return
 
         context.event_name = result
-        self.state_manager.update_context(client_id, vars(context))
+        self.state_manager.update_context(client_id, context.model_dump())
 
         await self.send_message(client_id, f"Great! Event name '{result}' saved.")
 
@@ -293,7 +339,7 @@ class CaptionHandler(BaseHandler):
 
         # Store the price text
         context.price_text = message
-        self.state_manager.update_context(client_id, vars(context))
+        self.state_manager.update_context(client_id, context.model_dump())
 
         await self.send_message(
             client_id, f"Great! Price information '{message}' saved."
@@ -339,7 +385,7 @@ class CaptionHandler(BaseHandler):
 
         # Clear the waiting flag
         context.waiting_for_image_decision = False
-        self.state_manager.update_context(client_id, vars(context))
+        self.state_manager.update_context(client_id, context.model_dump())
 
         # Redirect to the correct handler based on the updated flow
         await self.handle_media_source_selection(client_id, message)
@@ -351,7 +397,7 @@ class CaptionHandler(BaseHandler):
         # Handle both button responses and text responses
         if message.lower() in ["search_media", "search", "s"]:
             context.media_source = "search"
-            self.state_manager.update_context(client_id, vars(context))
+            self.state_manager.update_context(client_id, context.model_dump())
 
             # Show appropriate media options
             if context.is_video_content:
@@ -361,7 +407,7 @@ class CaptionHandler(BaseHandler):
 
         elif message.lower() in ["upload_media", "upload", "u"]:
             context.media_source = "upload"
-            self.state_manager.update_context(client_id, vars(context))
+            self.state_manager.update_context(client_id, context.model_dump())
 
             # Ask for upload
             self.state_manager.set_state(
@@ -408,7 +454,23 @@ class CaptionHandler(BaseHandler):
                     context.selected_image = media_url
                     self.logger.info(f"Image URL saved: {media_url[:50]}...")
 
-                self.state_manager.update_context(client_id, vars(context))
+                    # Check if this template requires event_image and set it if needed
+                    if context.template_id:
+                        template = TEMPLATE_CONFIG["templates"].get(
+                            context.template_id, {}
+                        )
+                        required_keys = template.get("required_keys", [])
+                        if "event_image" in required_keys:
+                            context.event_image = media_url
+                            self.logger.info(
+                                "Also setting event_image to the same URL for template compatibility"
+                            )
+
+                            # Update template data if it exists
+                            if context.template_data:
+                                context.template_data["event_image"] = media_url
+
+                self.state_manager.update_context(client_id, context.model_dump())
                 await self.send_message(
                     client_id, f"{media_type.capitalize()} uploaded successfully!"
                 )
@@ -435,7 +497,21 @@ class CaptionHandler(BaseHandler):
                 context.selected_image = message
                 self.logger.info(f"Image URL saved: {message[:50]}...")
 
-            self.state_manager.update_context(client_id, vars(context))
+                # Check if this template requires event_image and set it if needed
+                if context.template_id:
+                    template = TEMPLATE_CONFIG["templates"].get(context.template_id, {})
+                    required_keys = template.get("required_keys", [])
+                    if "event_image" in required_keys:
+                        context.event_image = message
+                        self.logger.info(
+                            "Also setting event_image to the same URL for template compatibility"
+                        )
+
+                        # Update template data if it exists
+                        if context.template_data:
+                            context.template_data["event_image"] = message
+
+            self.state_manager.update_context(client_id, context.model_dump())
             await self.send_message(
                 client_id, f"{media_type.capitalize()} uploaded successfully!"
             )
@@ -523,7 +599,7 @@ class CaptionHandler(BaseHandler):
                 selected_video = context.video_urls[selection - 1]
                 context.selected_video = selected_video
                 context.video_background = selected_video  # For template data
-                self.state_manager.update_context(client_id, vars(context))
+                self.state_manager.update_context(client_id, context.model_dump())
 
                 await self.send_message(client_id, f"Video {selection} selected!")
 
@@ -590,7 +666,7 @@ class CaptionHandler(BaseHandler):
 
             if media_url:
                 context.event_image = media_url
-                self.state_manager.update_context(client_id, vars(context))
+                self.state_manager.update_context(client_id, context.model_dump())
                 self.logger.info(f"Event image URL saved: {media_url[:50]}...")
 
                 await self.send_message(client_id, "Great! Event image saved.")
@@ -608,7 +684,7 @@ class CaptionHandler(BaseHandler):
         elif message.startswith("http") and ("://" in message):
             # This is a direct URL
             context.event_image = message
-            self.state_manager.update_context(client_id, vars(context))
+            self.state_manager.update_context(client_id, context.model_dump())
             self.logger.info(f"Event image URL saved: {message[:50]}...")
 
             await self.send_message(client_id, "Great! Event image saved.")

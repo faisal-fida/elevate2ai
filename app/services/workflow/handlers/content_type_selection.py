@@ -28,7 +28,7 @@ class ContentTypeSelectionHandler(BaseHandler):
             context.supported_platforms = supported_platforms
 
             # Update context
-            self.state_manager.update_context(client_id, vars(context))
+            self.state_manager.update_context(client_id, context.model_dump())
 
             # Move to platform selection for this content type
             self.state_manager.set_state(

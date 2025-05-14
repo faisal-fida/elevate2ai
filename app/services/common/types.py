@@ -1,5 +1,6 @@
-from typing import Dict, List, Optional, TypedDict, Literal, Any
+from typing import Dict, List, Optional, TypedDict, Literal, Any, Union, Iterator, Tuple
 from dataclasses import dataclass
+from pydantic import BaseModel, Field
 
 
 # Common type definitions
@@ -34,12 +35,10 @@ WorkflowStateType = Literal[
 MediaSourceType = Literal["upload", "search"]
 
 
-class MediaItem(TypedDict):
-    """Type definition for a media item"""
+class MediaItem(Dict[str, str]):
+    """Media item for WhatsApp messages"""
 
-    type: MediaType
-    url: str
-    caption: Optional[str]
+    pass
 
 
 class ButtonItem(TypedDict):
@@ -56,86 +55,60 @@ class SectionItem(TypedDict):
     rows: List[ButtonItem]
 
 
-@dataclass
-class WorkflowContext:
-    """Data class for workflow context"""
+class WorkflowContext(BaseModel):
+    """Context for workflow state"""
 
-    # Original fields
+    # Core content fields
     caption: str = ""
-    image_urls: List[str] = None
     original_text: str = ""
-    selected_image: str = ""  # The selected image URL
+    selected_content_type: str = ""
 
-    # Fields for social media posting workflow
-    selected_content_type: str = ""  # The content type selected by the user
-    selected_platforms: List[str] = None  # Platforms selected for the content type
-    content_types: Dict[str, str] = None  # For backward compatibility
+    # Platform selection
+    selected_platforms: List[str] = Field(default_factory=list)
+    content_types: Dict[str, str] = Field(default_factory=dict)
+    supported_platforms: List[str] = Field(
+        default_factory=lambda: ["instagram", "linkedin"]
+    )
+
+    # Media fields
+    selected_image: str = ""
+    selected_video: str = ""
+    image_urls: List[str] = Field(default_factory=list)
+    video_urls: List[str] = Field(default_factory=list)
+    is_video_content: bool = False
+
+    # Template-specific fields
+    event_name: str = ""
+    destination_name: str = ""
+    price_text: str = ""
+    event_image: str = ""
+    template_id: str = ""
+    template_type: str = ""
+    template_data: Dict[str, Any] = Field(default_factory=dict)
+
+    # Platform-specific outputs
+    platform_images: Dict[str, str] = Field(default_factory=dict)
+    platform_specific_captions: Dict[str, str] = Field(default_factory=dict)
+
+    # Workflow control
     schedule_time: str = ""
-    platform_specific_captions: Dict[str, str] = None
+    media_source: str = "search"
+    waiting_for_image_decision: bool = False
+
+    # Status tracking
+    post_status: Dict[str, bool] = Field(default_factory=dict)
     current_platform_index: int = 0
-    post_status: Dict[str, bool] = None
-    supported_platforms: List[str] = (
-        None  # Platforms that support the selected content type
-    )
-    platform_images: Dict[str, str] = None  # Platform-specific edited images
-    platform_videos: Dict[str, str] = None  # Platform-specific edited videos
 
-    # New fields for image inclusion feature
-    include_images: bool = True  # Default to including images
-    waiting_for_image_decision: bool = (
-        False  # Flag to track if we're waiting for user's decision
-    )
-    media_metadata: Optional[Dict] = None
+    # Media metadata from WhatsApp
+    media_metadata: Optional[Dict[str, Dict[str, str]]] = None
 
-    # New fields for template-based content generation
-    destination_name: str = ""  # For destination templates
-    event_name: str = ""  # For event templates
-    price_text: str = ""  # For promotional templates
-    template_id: str = ""  # Selected template ID
-    template_type: str = ""  # Type of template (destination, events, etc.)
-    template_data: Dict[str, Any] = None  # Data for template rendering
-    validation_errors: List[str] = None  # Errors from template validation
+    # Legacy/compatibility fields - consider removing in future versions
+    include_images: bool = True
+    video_background: str = ""  # Used by some templates
 
-    # Media asset fields for different template requirements
-    event_image: str = ""  # For event templates (client upload)
-    video_background: str = ""  # For video-based templates
-    logo_url: str = ""  # Client's logo
+    class Config:
+        arbitrary_types_allowed = True
 
-    # Media selection and upload tracking
-    media_source: MediaSourceType = "search"  # Default to search (vs upload)
-    waiting_for_media_upload: bool = False  # Flag for tracking media upload
-    is_video_content: bool = False  # Flag for tracking if we're working with video
-    video_urls: List[str] = None  # URLs of video backgrounds
-    selected_video: str = ""  # Selected video URL
-    media_prompts: Dict[str, str] = None  # Custom prompts for media requests
-    needs_destination_name: bool = False  # Flag for needing destination name
-    needs_event_name: bool = False  # Flag for needing event name
-    needs_price_text: bool = False  # Flag for needing price text
-    needs_event_image: bool = False  # Flag for needing event image
-
-    def __post_init__(self):
-        """Initialize default values for None fields"""
-        if self.image_urls is None:
-            self.image_urls = []
-        if self.selected_platforms is None:
-            self.selected_platforms = []
-        if self.content_types is None:
-            self.content_types = {}
-        if self.platform_specific_captions is None:
-            self.platform_specific_captions = {}
-        if self.post_status is None:
-            self.post_status = {}
-        if self.supported_platforms is None:
-            self.supported_platforms = []
-        if self.platform_images is None:
-            self.platform_images = {}
-        if self.platform_videos is None:
-            self.platform_videos = {}
-        if self.template_data is None:
-            self.template_data = {}
-        if self.validation_errors is None:
-            self.validation_errors = []
-        if self.video_urls is None:
-            self.video_urls = []
-        if self.media_prompts is None:
-            self.media_prompts = {}
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dict for state manager compatibility"""
+        return self.model_dump()
