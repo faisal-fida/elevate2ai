@@ -238,12 +238,15 @@ class CaptionHandler(BaseHandler):
         """Handle destination name input"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
-        # Check if this is a document message
-        if "received document with id:" in message.lower():
-            # This is a document message, not a destination name
+        # Check if this is a media message
+        context_data = self.state_manager.get_context(client_id)
+        if context_data.get("is_media_message", False) or message.startswith(
+            "MEDIA_MESSAGE:"
+        ):
+            # This is a media message, not a destination name
             await self.send_message(
                 client_id,
-                "I need a text name for your destination, not a document. Please enter the destination name (5 words or less):",
+                "I need a text name for your destination, not a media file. Please enter the destination name (5 words or less):",
             )
             return
 
@@ -269,12 +272,15 @@ class CaptionHandler(BaseHandler):
         """Handle event name input"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
-        # Check if this is a document message
-        if "received document with id:" in message.lower():
-            # This is a document message, not an event name
+        # Check if this is a media message
+        context_data = self.state_manager.get_context(client_id)
+        if context_data.get("is_media_message", False) or message.startswith(
+            "MEDIA_MESSAGE:"
+        ):
+            # This is a media message, not an event name
             await self.send_message(
                 client_id,
-                "I need a text name for your event, not a document. Please enter the event name (5 words or less):",
+                "I need a text name for your event, not a media file. Please enter the event name (5 words or less):",
             )
             return
 
@@ -300,12 +306,15 @@ class CaptionHandler(BaseHandler):
         """Handle price input"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
-        # Check if this is a document message
-        if "received document with id:" in message.lower():
-            # This is a document message, not a price
+        # Check if this is a media message
+        context_data = self.state_manager.get_context(client_id)
+        if context_data.get("is_media_message", False) or message.startswith(
+            "MEDIA_MESSAGE:"
+        ):
+            # This is a media message, not a price
             await self.send_message(
                 client_id,
-                "I need text for your price information, not a document. Please enter the price or promotion details (e.g., '$99', '50% off'):",
+                "I need text for your price information, not a media file. Please enter the price or promotion details (e.g., '$99', '50% off'):",
             )
             return
 
@@ -330,13 +339,80 @@ class CaptionHandler(BaseHandler):
         """Handle image upload from WhatsApp"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
-        # Extract media ID from message
-        if message.startswith("Received image with ID:") or message.startswith(
+        # Check if this is a structured media message
+        if message.startswith("MEDIA_MESSAGE:"):
+            parts = message.split(":")
+            if len(parts) >= 3:
+                media_type = parts[1]
+                media_id = parts[2]
+
+                self.logger.info(f"Processing {media_type} upload with ID: {media_id}")
+
+                # Check if we already have a URL from the workflow manager
+                # First check in the WorkflowContext object
+                public_url = None
+
+                # Then check in the raw context dictionary
+                context_dict = self.state_manager.get_context(client_id)
+                if "media_url" in context_dict:
+                    public_url = context_dict["media_url"]
+                    self.logger.info(
+                        f"Using media URL from context: {public_url[:50]}..."
+                    )
+
+                # If not, try to download it now
+                if not public_url:
+                    public_url = await save_whatsapp_image(media_id, client_id)
+
+                if public_url:
+                    # Store the public URL in the context
+                    context.selected_image = public_url
+
+                    # Also set event_image if needed by template
+                    if context.template_id:
+                        template = TEMPLATE_CONFIG["templates"].get(
+                            context.template_id, {}
+                        )
+                        required_keys = template.get("required_keys", [])
+                        if "event_image" in required_keys:
+                            context.event_image = public_url
+                            self.logger.info(
+                                "Also setting event_image to the same URL for template compatibility"
+                            )
+
+                            # Update template data if it exists
+                            if context.template_data:
+                                context.template_data["event_image"] = public_url
+
+                    self.state_manager.update_context(client_id, context.model_dump())
+                    await self.send_message(client_id, "Image uploaded successfully!")
+
+                    # Move to scheduling
+                    self.state_manager.set_state(
+                        client_id, WorkflowState.SCHEDULE_SELECTION
+                    )
+                    await self.send_scheduling_options(client_id)
+                else:
+                    # Failed to download media
+                    await self.send_message(
+                        client_id,
+                        f"I couldn't process your {media_type}. Please upload it again.",
+                    )
+            else:
+                # Invalid format
+                await self.send_message(
+                    client_id,
+                    "Invalid media message format. Please upload your image again.",
+                )
+        # For backward compatibility, handle the old format
+        elif message.startswith("Received image with ID:") or message.startswith(
             "Received media with ID:"
         ):
             # Extract media ID from the message
             media_id = message.split("ID:")[-1].strip()
-            self.logger.info(f"Processing image upload with ID: {media_id}")
+            self.logger.info(
+                f"Processing image upload with ID: {media_id} (legacy format)"
+            )
 
             # Download and get public URL in one step
             public_url = await save_whatsapp_image(media_id, client_id)
@@ -378,6 +454,36 @@ class CaptionHandler(BaseHandler):
                 client_id,
                 "Please upload an image directly through WhatsApp instead of sending a URL.",
             )
+        # Handle the case where the message is already a media URL path from our server
+        elif message.startswith("/media/images/") and message.endswith(
+            (".jpg", ".jpeg", ".png")
+        ):
+            # This is already a processed media URL, use it directly
+            self.logger.info(f"Using already processed media URL: {message}")
+
+            # Store the public URL in the context
+            context.selected_image = message
+
+            # Also set event_image if needed by template
+            if context.template_id:
+                template = TEMPLATE_CONFIG["templates"].get(context.template_id, {})
+                required_keys = template.get("required_keys", [])
+                if "event_image" in required_keys:
+                    context.event_image = message
+                    self.logger.info(
+                        "Also setting event_image to the same URL for template compatibility"
+                    )
+
+                    # Update template data if it exists
+                    if context.template_data:
+                        context.template_data["event_image"] = message
+
+            self.state_manager.update_context(client_id, context.model_dump())
+            await self.send_message(client_id, "Image uploaded successfully!")
+
+            # Move to scheduling
+            self.state_manager.set_state(client_id, WorkflowState.SCHEDULE_SELECTION)
+            await self.send_scheduling_options(client_id)
         else:
             # Invalid format
             await self.send_message(

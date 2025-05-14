@@ -42,6 +42,8 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
         # Process the message
         sender_id = message_data["sender_id"]
         message_text = message_data["message_text"]
+        message_type = message_data["message_type"]
+        is_media_message = message_data["is_media_message"]
 
         if not sender_id or not message_text:
             logger.error(
@@ -49,7 +51,14 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
             )
             return {"status": "error", "message": "Missing required message data"}
 
-        await workflow_manager.process_message(sender_id, message_text)
+        # Pass all relevant information to the workflow manager
+        await workflow_manager.process_message(
+            client_id=sender_id,
+            message=message_text,
+            message_type=message_type,
+            is_media_message=is_media_message,
+        )
+
         logger.info(f"Successfully processed message from {sender_id}")
         return {"status": "success", "message": "Message processed"}
 
@@ -109,10 +118,12 @@ def extract_message_data(data: Dict[Any, Any]) -> Dict[str, Any]:
             logger.info(f"Unprocessed message type: {message_type}")
             return None
 
+        # Create a structured response with all necessary information
         return {
             "sender_id": sender_id,
             "message_text": message_text,
             "message_type": message_type,
+            "is_media_message": message_type in ["image", "video", "document"],
         }
 
     except Exception as e:
@@ -136,7 +147,10 @@ def extract_interactive_message(message: Dict[str, Any]) -> str:
 def handle_media_message(
     message: Dict[str, Any], message_type: str, sender_id: str
 ) -> str:
-    """Process media messages (images, videos, documents) and update context"""
+    """
+    Process media messages (images, videos, documents) and update context
+    Returns a structured message with media type and ID for workflow processing
+    """
     media_obj = message.get(message_type, {})
     media_id = media_obj.get("id")
     media_mime = media_obj.get("mime_type", "")
@@ -151,11 +165,17 @@ def handle_media_message(
     # Store media metadata in user context
     context = workflow_manager.state_manager.get_context(sender_id)
 
+    # Initialize or reset media_metadata if needed
     if "media_metadata" not in context:
         context["media_metadata"] = {}
     elif not isinstance(context["media_metadata"], dict):
         context["media_metadata"] = {}
 
+    # Store the latest media ID for easy access
+    context["latest_media_id"] = media_id
+    context["latest_media_type"] = message_type
+
+    # Store detailed metadata
     context["media_metadata"][media_id] = {
         "type": message_type,
         "mime_type": media_mime,
@@ -163,4 +183,6 @@ def handle_media_message(
     }
 
     workflow_manager.state_manager.update_context(sender_id, context)
-    return f"Received {message_type} with ID: {media_id}"
+
+    # Return a structured message that will be used by the workflow
+    return f"MEDIA_MESSAGE:{message_type}:{media_id}"
