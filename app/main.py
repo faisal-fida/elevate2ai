@@ -2,6 +2,8 @@ from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.params import Query
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,8 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.api.webhook import verify_webhook, handle_message
 from app.api.auth.router import auth_router
-from app.api.media_proxy import router as media_proxy_router
-
+from app.api.media_router import router as media_router
 
 from .middleware import CustomJWTAuthMiddleware
 from app.db import Base, engine, get_db
@@ -18,6 +19,12 @@ from app.services.auth.whatsapp import AuthService
 from app.services.common.logging import setup_logger
 
 logger = setup_logger(__name__)
+
+# Create media directories if they don't exist
+media_path = Path("media")
+media_path.mkdir(exist_ok=True)
+(media_path / "images").mkdir(exist_ok=True)
+(media_path / "videos").mkdir(exist_ok=True)
 
 
 @asynccontextmanager
@@ -74,12 +81,15 @@ app.add_middleware(
         r"^/api/auth/login$",
         r"^/api/auth/session/refresh$",
         r"^/favicon\\.ico$",
-        r"^/api/media-proxy.*$",
+        r"^/media/.*$",
     ],
 )
 
+# Mount static media directory
+app.mount("/media", StaticFiles(directory="media"), name="media")
+
 app.include_router(auth_router, prefix="/api")
-app.include_router(media_proxy_router, prefix="/api", tags=["Media"])
+app.include_router(media_router, prefix="/api", tags=["Media"])
 
 
 @app.get("/", tags=["root"])

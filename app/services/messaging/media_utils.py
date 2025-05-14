@@ -1,10 +1,20 @@
 import httpx
-from typing import Optional
-import os
+from typing import Optional, Tuple
+from pathlib import Path
+import uuid
 from app.config import settings
 from app.services.common.logging import setup_logger
 
 logger = setup_logger(__name__)
+
+# Ensure media directories exist
+MEDIA_DIR = Path("media")
+IMAGES_DIR = MEDIA_DIR / "images"
+VIDEOS_DIR = MEDIA_DIR / "videos"
+
+MEDIA_DIR.mkdir(exist_ok=True)
+IMAGES_DIR.mkdir(exist_ok=True)
+VIDEOS_DIR.mkdir(exist_ok=True)
 
 
 async def retrieve_media_url(media_id: str) -> Optional[str]:
@@ -28,8 +38,6 @@ async def retrieve_media_url(media_id: str) -> Optional[str]:
 
             data = response.json()
 
-            print("xnxx", data)
-
             # Store the URL for later use
             if "url" in data:
                 logger.info(f"Successfully retrieved media URL for ID {media_id}")
@@ -43,25 +51,34 @@ async def retrieve_media_url(media_id: str) -> Optional[str]:
         return None
 
 
-async def download_media_file(
+async def download_media(
     media_id: str, media_type: str = "image"
-) -> Optional[str]:
-    """Download a media file from WhatsApp and save it locally."""
+) -> Optional[Tuple[str, str]]:
+    """
+    Download a media file from WhatsApp and save it locally.
+
+    Args:
+        media_id: The WhatsApp media ID
+        media_type: The type of media ("image" or "video")
+
+    Returns:
+        Tuple of (local file path, public URL) or None if download failed
+    """
     logger.info(f"Downloading {media_type} with ID: {media_id}")
 
-    # Create media directory if it doesn't exist
-    os.makedirs("media", exist_ok=True)
+    # Get proper directory
+    media_dir = IMAGES_DIR if media_type == "image" else VIDEOS_DIR
 
-    # Generate a filename based on media ID and type
-    file_extension = (
-        "jpg" if media_type == "image" else "mp4" if media_type == "video" else "bin"
-    )
-    filename = f"media/{media_id}.{file_extension}"
+    # Generate a unique filename with proper extension
+    file_extension = "jpg" if media_type == "image" else "mp4"
+    unique_filename = f"{uuid.uuid4()}.{file_extension}"
+    file_path = media_dir / unique_filename
 
     try:
         # Get the media URL first
         media_url = await retrieve_media_url(media_id)
         if not media_url:
+            logger.error(f"Could not retrieve media URL for ID: {media_id}")
             return None
 
         # Download the file
@@ -78,14 +95,78 @@ async def download_media_file(
                 return None
 
             # Save the file
-            with open(filename, "wb") as file:
+            with open(file_path, "wb") as file:
                 file.write(response.content)
-                logger.info(
-                    f"{media_type.capitalize()} downloaded successfully to {filename}"
-                )
 
-            return filename
+            # Calculate the public URL (media/images/filename.jpg or media/videos/filename.mp4)
+            public_url = f"/media/{media_type}s/{unique_filename}"
+            logger.info(
+                f"{media_type.capitalize()} downloaded successfully to {file_path}"
+            )
+            logger.info(f"Public URL: {public_url}")
+
+            return str(file_path), public_url
 
     except Exception as e:
         logger.error(f"Error downloading media: {str(e)}")
+        return None
+
+
+async def download_from_url(
+    url: str, media_type: str = "image"
+) -> Optional[Tuple[str, str]]:
+    """
+    Download media from an external URL and save it locally.
+
+    Args:
+        url: The external URL
+        media_type: The type of media ("image" or "video")
+
+    Returns:
+        Tuple of (local file path, public URL) or None if download failed
+    """
+    logger.info(f"Downloading {media_type} from URL: {url[:50]}...")
+
+    # Get proper directory
+    media_dir = IMAGES_DIR if media_type == "image" else VIDEOS_DIR
+
+    # Generate a unique filename with proper extension
+    file_extension = "jpg" if media_type == "image" else "mp4"
+    unique_filename = f"{uuid.uuid4()}.{file_extension}"
+    file_path = media_dir / unique_filename
+
+    # Check if this is a WhatsApp URL
+    is_whatsapp_url = "lookaside.fbsbx.com/whatsapp_business" in url
+
+    try:
+        # Download the file
+        async with httpx.AsyncClient() as client:
+            headers = {}
+            if is_whatsapp_url:
+                # Add authorization for WhatsApp URLs
+                headers["Authorization"] = f"Bearer {settings.WHATSAPP_TOKEN}"
+
+            response = await client.get(url, headers=headers)
+
+            if response.status_code != 200:
+                logger.error(
+                    f"Failed to download from URL. Status code: {response.status_code}"
+                )
+                return None
+
+            # Save the file
+            with open(file_path, "wb") as file:
+                file.write(response.content)
+
+            # Calculate the public URL
+            public_url = f"/media/{media_type}s/{unique_filename}"
+            logger.info(
+                f"{media_type.capitalize()} downloaded successfully to {file_path}"
+            )
+            logger.info(f"Public URL: {public_url}")
+
+            return str(file_path), public_url
+
+    except Exception as e:
+        logger.error(f"Error downloading from URL {url}: {str(e)}")
         return None

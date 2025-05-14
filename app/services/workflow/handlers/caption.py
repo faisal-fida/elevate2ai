@@ -1,4 +1,3 @@
-import urllib.parse
 from typing import List
 from app.services.messaging.client import MessagingClient
 from app.services.messaging.state_manager import StateManager, WorkflowState
@@ -6,7 +5,7 @@ from app.services.workflow.handlers.base import BaseHandler
 from app.services.content.generator import ContentGenerator
 from app.constants import MESSAGES, TEMPLATE_CONFIG
 from app.services.common.types import WorkflowContext, MediaItem
-from app.services.messaging.media_utils import retrieve_media_url
+from app.services.messaging.media_utils import download_media, download_from_url
 
 
 class CaptionHandler(BaseHandler):
@@ -469,11 +468,13 @@ class CaptionHandler(BaseHandler):
             media_id = message.split("ID:")[-1].strip()
             self.logger.info(f"Processing {media_type} upload with ID: {media_id}")
 
-            # Use the utility function to retrieve the media URL
-            media_url = await retrieve_media_url(media_id)
+            # Download the media file locally
+            result = await download_media(media_id, media_type)
 
-            if media_url:
-                # Store original WhatsApp URL in media_metadata for reference
+            if result:
+                file_path, public_url = result
+
+                # Store metadata for reference
                 if not hasattr(context, "media_metadata"):
                     context.media_metadata = {}
 
@@ -482,27 +483,22 @@ class CaptionHandler(BaseHandler):
 
                 context.media_metadata = {
                     "media_info": {
-                        "original_url": media_url,
                         "media_id": media_id,
                         "media_type": media_type,
+                        "file_path": file_path,
+                        "public_url": public_url,
                     }
                 }
 
-                self.logger.info(f"Media URL retrieved: {media_url} for {media_type}.")
-                base_url = (
-                    "https://didactic-space-guide-q6x5rqx6xqjh9rxr-8000.app.github.dev"
-                )
+                self.logger.info(f"Media downloaded to: {file_path}")
+                self.logger.info(f"Public URL: {public_url}")
 
-                proxy_url = f"{base_url}/api/media-proxy?url={urllib.parse.quote(media_url, safe='')}"
-
-                # Store the proxy URL for Switchboard to use
+                # Store the local URL
                 if context.is_video_content:
-                    context.selected_video = proxy_url
-                    context.video_background = proxy_url  # For template data
-                    self.logger.info(f"Video URL saved with proxy: {proxy_url[:50]}...")
+                    context.selected_video = public_url
+                    context.video_background = public_url  # For template data
                 else:
-                    context.selected_image = proxy_url
-                    self.logger.info(f"Image URL saved with proxy: {proxy_url[:50]}...")
+                    context.selected_image = public_url
 
                     # Check if this template requires event_image and set it if needed
                     if context.template_id:
@@ -511,14 +507,14 @@ class CaptionHandler(BaseHandler):
                         )
                         required_keys = template.get("required_keys", [])
                         if "event_image" in required_keys:
-                            context.event_image = proxy_url
+                            context.event_image = public_url
                             self.logger.info(
-                                "Also setting event_image to the proxy URL for template compatibility"
+                                "Also setting event_image to the same URL for template compatibility"
                             )
 
                             # Update template data if it exists
                             if context.template_data:
-                                context.template_data["event_image"] = proxy_url
+                                context.template_data["event_image"] = public_url
 
                 self.state_manager.update_context(client_id, context.model_dump())
                 await self.send_message(
@@ -531,7 +527,7 @@ class CaptionHandler(BaseHandler):
                 )
                 await self.send_scheduling_options(client_id)
             else:
-                # Failed to retrieve media URL
+                # Failed to download media
                 await self.send_message(
                     client_id,
                     f"I couldn't process your {media_type}. Please upload it again or send it as a URL.",
@@ -539,64 +535,69 @@ class CaptionHandler(BaseHandler):
             return
         elif message.startswith("http") and ("://" in message):
             # This is a direct URL
-            is_whatsapp_url = "lookaside.fbsbx.com/whatsapp_business" in message
+            result = await download_from_url(message, media_type)
 
-            if is_whatsapp_url:
-                # Store original URL in metadata
+            if result:
+                file_path, public_url = result
+
+                # Store metadata for reference
                 if not hasattr(context, "media_metadata"):
                     context.media_metadata = {}
 
-                    # Store original URL in metadata - fix the structure
-                if not hasattr(context, "media_metadata"):
+                if not isinstance(context.media_metadata, dict):
                     context.media_metadata = {}
 
                 context.media_metadata = {
-                    "media_info": {"original_url": message, "media_type": media_type}
+                    "media_info": {
+                        "original_url": message,
+                        "media_type": media_type,
+                        "file_path": file_path,
+                        "public_url": public_url,
+                    }
                 }
 
-                # Create a proxy URL for WhatsApp URLs
-                base_url = (
-                    "https://didactic-space-guide-q6x5rqx6xqjh9rxr-8000.app.github.dev"
-                )
-                proxy_url = f"{base_url}/api/media-proxy?url={urllib.parse.quote(message, safe='')}"
-                url_to_use = proxy_url
-                self.logger.info(
-                    f"Using proxy URL for WhatsApp media: {proxy_url[:50]}..."
-                )
-            else:
-                # Use direct URL for non-WhatsApp URLs
-                url_to_use = message
+                self.logger.info(f"Media downloaded to: {file_path}")
+                self.logger.info(f"Public URL: {public_url}")
 
-            if context.is_video_content:
-                context.selected_video = url_to_use
-                context.video_background = url_to_use  # For template data
-                self.logger.info(f"Video URL saved: {url_to_use[:50]}...")
-            else:
-                context.selected_image = url_to_use
-                self.logger.info(f"Image URL saved: {url_to_use[:50]}...")
+                # Store the local URL
+                if context.is_video_content:
+                    context.selected_video = public_url
+                    context.video_background = public_url  # For template data
+                else:
+                    context.selected_image = public_url
 
-                # Check if this template requires event_image and set it if needed
-                if context.template_id:
-                    template = TEMPLATE_CONFIG["templates"].get(context.template_id, {})
-                    required_keys = template.get("required_keys", [])
-                    if "event_image" in required_keys:
-                        context.event_image = url_to_use
-                        self.logger.info(
-                            "Also setting event_image to the same URL for template compatibility"
+                    # Check if this template requires event_image and set it if needed
+                    if context.template_id:
+                        template = TEMPLATE_CONFIG["templates"].get(
+                            context.template_id, {}
                         )
+                        required_keys = template.get("required_keys", [])
+                        if "event_image" in required_keys:
+                            context.event_image = public_url
+                            self.logger.info(
+                                "Also setting event_image to the same URL for template compatibility"
+                            )
 
-                        # Update template data if it exists
-                        if context.template_data:
-                            context.template_data["event_image"] = url_to_use
+                            # Update template data if it exists
+                            if context.template_data:
+                                context.template_data["event_image"] = public_url
 
-            self.state_manager.update_context(client_id, context.model_dump())
-            await self.send_message(
-                client_id, f"{media_type.capitalize()} uploaded successfully!"
-            )
+                self.state_manager.update_context(client_id, context.model_dump())
+                await self.send_message(
+                    client_id, f"{media_type.capitalize()} uploaded successfully!"
+                )
 
-            # Move to scheduling
-            self.state_manager.set_state(client_id, WorkflowState.SCHEDULE_SELECTION)
-            await self.send_scheduling_options(client_id)
+                # Move to scheduling
+                self.state_manager.set_state(
+                    client_id, WorkflowState.SCHEDULE_SELECTION
+                )
+                await self.send_scheduling_options(client_id)
+            else:
+                # Failed to download
+                await self.send_message(
+                    client_id,
+                    f"I couldn't download the {media_type} from the provided URL. Please try another URL or upload directly.",
+                )
         else:
             # Invalid format
             await self.send_message(
