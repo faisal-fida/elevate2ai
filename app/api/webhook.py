@@ -6,8 +6,9 @@ from app.services.workflow.manager import WorkflowManager
 from app.services.common.logging import setup_logger, log_exception
 
 router = APIRouter()
-workflow_manager = WorkflowManager()
 logger = setup_logger(__name__)
+
+workflow_manager: WorkflowManager = WorkflowManager()
 
 
 @router.get("/webhook")
@@ -70,11 +71,18 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
                 }
         else:
             if message.get("type") != "text":
-                print("Non-text message received")
-                print(message)
                 message_type = message.get("type", "unknown")
                 if message_type in ["image", "video", "document"]:
-                    message_text = f"[{message_type}]"  # Placeholder
+                    media_id = message.get(message_type, {}).get("id")
+                    if media_id:
+                        logger.info(f"Received {message_type} with ID: {media_id}")
+                        message_text = f"Received {message_type} with ID: {media_id}"
+                    else:
+                        logger.error(f"Missing media ID for {message_type} message")
+                        return {
+                            "status": "error",
+                            "message": f"Missing media ID for {message_type} message",
+                        }
                 else:
                     return {
                         "status": "success",
