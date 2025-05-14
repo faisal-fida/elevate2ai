@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     )
     ENVIRONMENT: Literal["dev", "prod"] = Field(default="dev", env="ENVIRONMENT")
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")
+    BASE_URL: str = Field(default="https://elevate2ai.example.com", env="BASE_URL")
 
     # Database
     DATABASE_PATH: str = Field(default="./app.db", env="DATABASE_PATH")

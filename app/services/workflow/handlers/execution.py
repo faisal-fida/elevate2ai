@@ -218,8 +218,11 @@ class ExecutionHandler(BaseHandler):
                         template_data["event_image"] = context.event_image
                     # If event_image is required but not set, use selected_image
                     elif context.selected_image:
-                        # Check if this template requires event_image
-                        template_id = f"{platform}_351915950259_{content_type}"  #! TODO: remove hardcoded template_id
+                        # Use a default template ID for compatibility
+                        template_client_id = (
+                            "351915950259"  # Default template client ID
+                        )
+                        template_id = f"{platform}_{template_client_id}_{content_type}"
                         template = TEMPLATE_CONFIG["templates"].get(template_id, {})
                         required_keys = template.get("required_keys", [])
                         if "event_image" in required_keys:
@@ -229,8 +232,9 @@ class ExecutionHandler(BaseHandler):
                             )
 
                     # Validate inputs for this template
-                    # template_id = f"{platform}_{client_id}_{content_type}"
-                    template_id = f"{platform}_351915950259_{content_type}"  #! TODO: remove hardcoded template_id
+                    # Use the default template ID for validation
+                    template_client_id = "351915950259"  # Default template client ID
+                    template_id = f"{platform}_{template_client_id}_{content_type}"
                     is_valid, error_message, validated_data = validate_template_inputs(
                         template_id, template_data
                     )
@@ -346,7 +350,9 @@ class ExecutionHandler(BaseHandler):
                         template_data["event_image"] = context.event_image
 
                     # Validate inputs for this template
-                    template_id = f"{platform}_{client_id}_{content_type}"
+                    # Use the default template ID for validation
+                    template_client_id = "351915950259"  # Default template client ID
+                    template_id = f"{platform}_{template_client_id}_{content_type}"
                     is_valid, error_message, validated_data = validate_template_inputs(
                         template_id, template_data
                     )

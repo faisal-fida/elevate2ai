@@ -201,8 +201,25 @@ def create_image(
     )
     canvas = SwitchboardService()
     try:
-        client_id = "351915950259"
-        payload = canvas.get_payload(client_id, template_data, platform, post_type)
+        # Use a default template ID if needed, but don't override the client_id parameter
+        template_client_id = "351915950259"  # Default template client ID for testing
+
+        # Convert any relative URLs in template_data to absolute URLs
+        for key in ["main_image", "event_image", "video_background"]:
+            if (
+                key in template_data
+                and template_data[key]
+                and isinstance(template_data[key], str)
+            ):
+                url = template_data[key]
+                if url.startswith("/"):
+                    # Convert relative URL to absolute URL
+                    template_data[key] = f"{settings.BASE_URL.rstrip('/')}{url}"
+
+        # Use the template client ID for payload generation
+        payload = canvas.get_payload(
+            template_client_id, template_data, platform, post_type
+        )
         response = canvas.generate_image(payload)
         return response
     except Exception as e:

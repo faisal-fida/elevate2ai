@@ -7,9 +7,11 @@ allowing the application to send text messages, media, and interactive elements.
 
 from __future__ import annotations
 import httpx
+import re
 from typing import Dict, Any, Optional, Union, List
 from app.services.common.logging import setup_logger
 from app.services.common.types import MediaItem, ButtonItem, SectionItem
+from app.config import settings
 
 
 class MessagingClient:
@@ -123,6 +125,8 @@ class WhatsApp(MessagingClient):
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.token}",
         }
+        # Base URL for media files (used to convert relative URLs to absolute)
+        self.media_base_url = settings.BASE_URL.rstrip("/")
 
     def preprocess(self, data: Dict[Any, Any]) -> Dict[Any, Any]:
         """Preprocess webhook data before handling"""
@@ -188,6 +192,27 @@ class WhatsApp(MessagingClient):
 
         return responses
 
+    def _convert_to_absolute_url(self, url: str) -> str:
+        """
+        Convert relative URLs to absolute URLs.
+
+        Args:
+            url: The URL to convert
+
+        Returns:
+            Absolute URL
+        """
+        # If it's already an absolute URL, return it as is
+        if url.startswith(("http://", "https://")):
+            return url
+
+        # If it's a relative URL starting with /, convert it to absolute
+        if url.startswith("/"):
+            return f"{self.media_base_url}{url}"
+
+        # Otherwise, assume it's a relative path and add both / and base URL
+        return f"{self.media_base_url}/{url}"
+
     async def _send_single_media_item(
         self,
         client: httpx.AsyncClient,
@@ -209,13 +234,21 @@ class WhatsApp(MessagingClient):
             self.logger.error(f"Missing URL for {media_type}")
             return {"error": f"Missing URL for {media_type}"}
 
+        # Convert relative URLs to absolute URLs
+        url = self._convert_to_absolute_url(item.get("url", ""))
+
+        # Validate the URL format
+        if not re.match(r"^https?://", url):
+            self.logger.error(f"Invalid URL format: {url}")
+            return {"error": f"Invalid URL format: {url}"}
+
         # Prepare payload
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": recipient_type,
             "to": phone_number,
             "type": media_type,
-            media_type: {"link": item.get("url", "")},
+            media_type: {"link": url},
         }
 
         # Add caption if present
