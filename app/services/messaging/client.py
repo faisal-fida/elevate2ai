@@ -108,23 +108,11 @@ class MessagingClient:
 
 
 class WhatsApp(MessagingClient):
-    """
-    WhatsApp messaging client implementation using the WhatsApp Business API.
-
-    Provides methods for sending text messages, media attachments,
-    and interactive elements to WhatsApp users.
-    """
+    """WhatsApp messaging client implementation using the WhatsApp Business API."""
 
     def __init__(
         self, token: Optional[str] = None, phone_number_id: Optional[str] = None
     ):
-        """
-        Initialize the WhatsApp client.
-
-        Args:
-            token: WhatsApp API authentication token
-            phone_number_id: WhatsApp Business phone number ID
-        """
         super().__init__()
         self.token = token
         self.phone_number_id = phone_number_id
@@ -155,18 +143,8 @@ class WhatsApp(MessagingClient):
         recipient_type: str = "individual",
         preview_url: bool = True,
     ) -> Dict[str, Any]:
-        """
-        Send a text message to a WhatsApp user.
+        """Send a text message to a WhatsApp user."""
 
-        Args:
-            message: Text content to send
-            phone_number: Recipient's phone number
-            recipient_type: Type of recipient ('individual' or 'group')
-            preview_url: Whether to generate link previews in the message
-
-        Returns:
-            Response data from the WhatsApp API
-        """
         data = {
             "messaging_product": "whatsapp",
             "recipient_type": recipient_type,
@@ -196,17 +174,7 @@ class WhatsApp(MessagingClient):
         phone_number: str,
         recipient_type: str = "individual",
     ) -> List[Dict[str, Any]]:
-        """
-        Send media to a WhatsApp user.
-
-        Args:
-            media_items: List of media items to send (images, videos)
-            phone_number: Recipient's phone number
-            recipient_type: Type of recipient ('individual' or 'group')
-
-        Returns:
-            List of response data from the WhatsApp API
-        """
+        """Send media to a WhatsApp user."""
         if not isinstance(media_items, list):
             media_items = [media_items]
 
@@ -227,18 +195,8 @@ class WhatsApp(MessagingClient):
         phone_number: str,
         recipient_type: str = "individual",
     ) -> Dict[str, Any]:
-        """
-        Send a single media item to a WhatsApp user.
+        """Send a single media item to a WhatsApp user."""
 
-        Args:
-            client: HTTPX client to use for the request
-            item: Media item to send
-            phone_number: Recipient's phone number
-            recipient_type: Type of recipient
-
-        Returns:
-            Response data from the WhatsApp API
-        """
         media_type = item.get("type", "").lower()
 
         # Validate media type
@@ -287,25 +245,17 @@ class WhatsApp(MessagingClient):
         phone_number: str,
         recipient_type: str = "individual",
     ) -> Dict[str, Any]:
-        """
-        Send interactive buttons to a WhatsApp user.
+        """Send interactive buttons to a WhatsApp user."""
 
-        Args:
-            header_text: Text to display in the message header
-            body_text: Main message content
-            buttons: List of interactive buttons (max 3)
-            phone_number: Recipient's phone number
-            recipient_type: Type of recipient ('individual' or 'group')
-
-        Returns:
-            Response data from the WhatsApp API
-        """
-        # WhatsApp supports a maximum of 3 buttons
         if len(buttons) > 3:
-            self.logger.warning(
-                f"WhatsApp only supports up to 3 buttons, truncating list"
+            return await self.send_interactive_list(
+                header_text,
+                body_text,
+                "Select an option",
+                [{"title": "Options", "items": buttons}],
+                phone_number,
+                recipient_type,
             )
-            buttons = buttons[:3]
 
         payload = {
             "messaging_product": "whatsapp",
@@ -360,20 +310,8 @@ class WhatsApp(MessagingClient):
         phone_number: str,
         recipient_type: str = "individual",
     ) -> Dict[str, Any]:
-        """
-        Send an interactive list to a WhatsApp user.
+        """Send an interactive list to a WhatsApp user."""
 
-        Args:
-            header_text: Text to display in the message header
-            body_text: Main message content
-            button_text: Text for the list button
-            sections: List of sections containing selectable items
-            phone_number: Recipient's phone number
-            recipient_type: Type of recipient ('individual' or 'group')
-
-        Returns:
-            Response data from the WhatsApp API
-        """
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": recipient_type,
@@ -431,14 +369,8 @@ class WhatsApp(MessagingClient):
         phone_number: str,
         content_type: str = "message",
     ) -> None:
-        """
-        Handle and log WhatsApp API errors.
+        """Handle and log WhatsApp API errors."""
 
-        Args:
-            response_data: API response containing error details
-            phone_number: Recipient's phone number
-            content_type: Type of content that failed to send
-        """
         error_info = response_data.get("error", {})
         error_code = error_info.get("code")
         error_message = error_info.get("message", "Unknown error")
@@ -457,15 +389,8 @@ class WhatsApp(MessagingClient):
         )
 
     def _format_error_message(self, response_data: Dict[str, Any]) -> Dict[str, str]:
-        """
-        Format API error message for consistent error reporting.
+        """Format API error message for consistent error reporting."""
 
-        Args:
-            response_data: API response containing error details
-
-        Returns:
-            Formatted error message
-        """
         error_info = response_data.get("error", {})
         error_code = error_info.get("code", "unknown")
         error_message = error_info.get("message", "Unknown error")

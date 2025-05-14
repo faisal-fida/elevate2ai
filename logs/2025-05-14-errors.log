@@ -1,0 +1,51 @@
+ERROR | app.services.workflow.manager | (logging.py:167) | Error processing message for 923408957390
+State: WAITING_FOR_MEDIA_UPLOAD
+Message: 'Received image with ID: 1139408681230448'
+
+Traceback (most recent call last):
+  File "/workspaces/elevate2ai/app/services/workflow/manager.py", line 104, in _message_processor
+    media_url = await save_whatsapp_image(media_id)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: save_whatsapp_image() missing 1 required positional argument: 'client_id'
+
+Stack:
+  File "<string>", line 1, in <module>
+  File "/home/codespace/.python/current/lib/python3.12/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+  File "/home/codespace/.python/current/lib/python3.12/multiprocessing/spawn.py", line 135, in _main
+    return self._bootstrap(parent_sentinel)
+  File "/home/codespace/.python/current/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/home/codespace/.python/current/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/workspaces/elevate2ai/.venv/lib/python3.12/site-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "/workspaces/elevate2ai/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 66, in run
+    return asyncio.run(self.serve(sockets=sockets))
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/base_events.py", line 671, in run_until_complete
+    self.run_forever()
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/base_events.py", line 638, in run_forever
+    self._run_once()
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/base_events.py", line 1971, in _run_once
+    handle._run()
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "/workspaces/elevate2ai/app/services/workflow/manager.py", line 148, in _message_processor
+    log_exception(self.logger, error_msg, e)
+  File "/workspaces/elevate2ai/app/services/common/logging.py", line 167, in log_exception
+    logger.error(f"{message}\n{tb_text}")
+  File "/home/codespace/.python/current/lib/python3.12/logging/__init__.py", line 1568, in error
+    self._log(ERROR, msg, args, **kwargs)
+  File "/home/codespace/.python/current/lib/python3.12/logging/__init__.py", line 1684, in _log
+    self.handle(record)
+  File "/home/codespace/.python/current/lib/python3.12/logging/__init__.py", line 1700, in handle
+    self.callHandlers(record)
+  File "/home/codespace/.python/current/lib/python3.12/logging/__init__.py", line 1762, in callHandlers
+    hdlr.handle(record)
+  File "/home/codespace/.python/current/lib/python3.12/logging/__init__.py", line 1028, in handle
+    self.emit(record)
+

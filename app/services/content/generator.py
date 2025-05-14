@@ -75,16 +75,8 @@ class ContentGenerator:
     async def generate_template_content(
         self, template_id: str, user_inputs: Dict[str, Any]
     ) -> Tuple[str, List[str], Dict[str, Any]]:
-        """
-        Generate content based on a specific template from TEMPLATE_CONFIG.
+        """Generate content based on a specific template from TEMPLATE_CONFIG."""
 
-        Args:
-            template_id: The ID of the template to use
-            user_inputs: Dictionary containing user-provided inputs like destination_name
-
-        Returns:
-            Tuple of (caption, media_urls, template_data)
-        """
         try:
             # Get template details from TEMPLATE_CONFIG
             template_details = TEMPLATE_CONFIG["templates"].get(template_id)
@@ -244,17 +236,8 @@ class ContentGenerator:
     def get_template_by_platform_and_type(
         self, platform: str, content_type: str, client_id: str
     ) -> Optional[str]:
-        """
-        Find a template ID based on platform, content type and client ID.
+        """Find a template ID based on platform, content type and client ID."""
 
-        Args:
-            platform: The social media platform (instagram, linkedin, tiktok)
-            content_type: The type of content (destination, events, etc.)
-            client_id: The client's ID
-
-        Returns:
-            Template ID if found, None otherwise
-        """
         try:
             # Create the template ID pattern
             template_pattern = f"{platform}_{client_id}_{content_type}"

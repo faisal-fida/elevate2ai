@@ -6,16 +6,23 @@ and template-based content creation for social media platforms.
 """
 
 from app.services.content.generator import ContentGenerator
-from app.services.content.image_service import ImageService
-from app.services.content.openai_service import OpenAIService
+from app.services.content.image_service import MediaService
+from app.services.content.openai_service import AsyncOpenAIService
 from app.services.content.switchboard import SwitchboardService
-from app.services.content.template_utils import render_template, get_template_fields
+from app.services.content.template_utils import (
+    get_template_by_id,
+    get_required_keys,
+    get_template_type,
+    filter_templates_by_type,
+)
 
 __all__ = [
     "ContentGenerator",
-    "ImageService",
-    "OpenAIService",
+    "MediaService",
+    "AsyncOpenAIService",
     "SwitchboardService",
-    "render_template",
-    "get_template_fields",
+    "get_template_by_id",
+    "get_required_keys",
+    "get_template_type",
+    "filter_templates_by_type",
 ]

@@ -5,7 +5,7 @@ from app.constants import SOCIAL_MEDIA_PLATFORMS, TEMPLATE_CONFIG
 from app.services.common.logging import setup_logger
 
 
-class SwitchboardCanvas:
+class SwitchboardService:
     """Service for interacting with Switchboard Canvas API"""
 
     def __init__(self, base_url: str = "https://api.canvas.switchboard.ai"):
@@ -199,7 +199,7 @@ def create_image(
     logger.info(
         f"Creating image for client {client_id} on {platform} with post type {post_type}"
     )
-    canvas = SwitchboardCanvas()
+    canvas = SwitchboardService()
     try:
         client_id = "351915950259"
         payload = canvas.get_payload(client_id, template_data, platform, post_type)

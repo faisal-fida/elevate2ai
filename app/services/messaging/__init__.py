@@ -7,6 +7,12 @@ managing media attachments, and tracking user conversation state.
 
 from app.services.messaging.client import WhatsApp
 from app.services.messaging.state_manager import StateManager, WorkflowState
-from app.services.messaging.media_utils import retrieve_media_url
+from app.services.messaging.media_utils import save_whatsapp_image, cleanup_client_media
 
-__all__ = ["WhatsApp", "StateManager", "WorkflowState", "retrieve_media_url"]
+__all__ = [
+    "WhatsApp",
+    "StateManager",
+    "WorkflowState",
+    "save_whatsapp_image",
+    "cleanup_client_media",
+]

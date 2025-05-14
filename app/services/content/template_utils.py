@@ -6,28 +6,14 @@ logger = setup_logger(__name__)
 
 
 def get_template_by_id(template_id: str) -> Optional[Dict[str, Any]]:
-    """
-    Get template details by ID.
+    """Get template details by ID."""
 
-    Args:
-        template_id: The template ID to look up
-
-    Returns:
-        Template details or None if not found
-    """
     return TEMPLATE_CONFIG["templates"].get(template_id)
 
 
 def get_required_keys(template_id: str) -> List[str]:
-    """
-    Get the required keys for a template.
+    """Get the required keys for a template."""
 
-    Args:
-        template_id: The template ID to look up
-
-    Returns:
-        List of required keys
-    """
     template = get_template_by_id(template_id)
     if not template:
         return []
@@ -35,15 +21,8 @@ def get_required_keys(template_id: str) -> List[str]:
 
 
 def get_template_type(template_id: str) -> Optional[str]:
-    """
-    Get the type of a template.
+    """Get the type of a template."""
 
-    Args:
-        template_id: The template ID to look up
-
-    Returns:
-        Template type or None if not found
-    """
     template = get_template_by_id(template_id)
     if not template:
         return None
@@ -51,15 +30,8 @@ def get_template_type(template_id: str) -> Optional[str]:
 
 
 def filter_templates_by_type(template_type: str) -> List[str]:
-    """
-    Get all template IDs of a specific type.
+    """Get all template IDs of a specific type."""
 
-    Args:
-        template_type: The type to filter by
-
-    Returns:
-        List of template IDs
-    """
     return [
         template_id
         for template_id, details in TEMPLATE_CONFIG["templates"].items()
@@ -70,16 +42,8 @@ def filter_templates_by_type(template_type: str) -> List[str]:
 def validate_template_inputs(
     template_id: str, user_inputs: Dict[str, Any]
 ) -> Tuple[bool, str, Dict[str, Any]]:
-    """
-    Validate user inputs against template requirements.
+    """Validate user inputs against template requirements."""
 
-    Args:
-        template_id: The template ID to validate against
-        user_inputs: The user-provided inputs
-
-    Returns:
-        Tuple of (is_valid, error_message, validated_inputs)
-    """
     try:
         template = get_template_by_id(template_id)
         if not template:
@@ -118,15 +82,8 @@ def validate_template_inputs(
 
 
 def get_templates_for_platform(platform: str) -> List[Dict[str, Any]]:
-    """
-    Get all templates available for a platform.
+    """Get all templates available for a platform."""
 
-    Args:
-        platform: The platform name (instagram, linkedin, tiktok)
-
-    Returns:
-        List of template details
-    """
     platform_templates = []
     for template_id, details in TEMPLATE_CONFIG["templates"].items():
         if template_id.startswith(f"{platform}_"):
@@ -143,16 +100,8 @@ def get_templates_for_platform(platform: str) -> List[Dict[str, Any]]:
 def build_template_payload(
     template_id: str, template_data: Dict[str, Any]
 ) -> Dict[str, Any]:
-    """
-    Build a payload for the template.
+    """Build a payload for the template."""
 
-    Args:
-        template_id: The template ID
-        template_data: The data to populate the template with
-
-    Returns:
-        Template payload
-    """
     template = get_template_by_id(template_id)
     if not template:
         raise ValueError(f"Template {template_id} not found")

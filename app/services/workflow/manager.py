@@ -13,7 +13,7 @@ from app.services.workflow.handlers.platform_selection_for_content import (
 from app.services.workflow.handlers.caption import CaptionHandler
 from app.services.workflow.handlers.scheduling import SchedulingHandler
 from app.services.workflow.handlers.execution import ExecutionHandler
-from app.services.messaging.media_utils import retrieve_media_url
+from app.services.messaging.media_utils import save_whatsapp_image
 
 
 class WorkflowManager:
@@ -101,7 +101,7 @@ class WorkflowManager:
                     # Process according to the current state
                     if current_state == WorkflowState.WAITING_FOR_MEDIA_UPLOAD:
                         # Get media URL using our utility function
-                        media_url = await retrieve_media_url(media_id)
+                        media_url = await save_whatsapp_image(media_id)
 
                         if media_url:
                             # Create a proper URL message for the handler
