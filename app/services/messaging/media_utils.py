@@ -148,6 +148,12 @@ async def download_from_url(
 
             response = await client.get(url, headers=headers)
 
+            print(f"Response: {response.text}")
+
+            import pdb
+
+            pdb.set_trace()
+
             if response.status_code != 200:
                 logger.error(
                     f"Failed to download from URL. Status code: {response.status_code}"

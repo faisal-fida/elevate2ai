@@ -13,7 +13,7 @@ from app.services.workflow.handlers.platform_selection_for_content import (
 from app.services.workflow.handlers.caption import CaptionHandler
 from app.services.workflow.handlers.scheduling import SchedulingHandler
 from app.services.workflow.handlers.execution import ExecutionHandler
-from app.services.messaging.media_utils import retrieve_media_url, download_media_file
+from app.services.messaging.media_utils import retrieve_media_url
 
 
 class WorkflowManager:
@@ -57,11 +57,6 @@ class WorkflowManager:
             self.logger.debug(
                 f"Message processor already running for client {client_id}"
             )
-
-    async def download_media(self, media_id: str, media_type: str = "image") -> str:
-        """Download a media file from WhatsApp and save it locally."""
-        self.logger.info(f"Downloading {media_type} with ID: {media_id}")
-        return await download_media_file(media_id, media_type)
 
     async def _message_processor(self, client_id: str) -> None:
         """Process messages from the queue for a specific client."""

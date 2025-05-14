@@ -533,8 +533,8 @@ class CaptionHandler(BaseHandler):
                     f"I couldn't process your {media_type}. Please upload it again or send it as a URL.",
                 )
             return
+
         elif message.startswith("http") and ("://" in message):
-            # This is a direct URL
             result = await download_from_url(message, media_type)
 
             if result:
