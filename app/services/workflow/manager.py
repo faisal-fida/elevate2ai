@@ -58,11 +58,6 @@ class WorkflowManager:
                 f"Message processor already running for client {client_id}"
             )
 
-    async def retrieve_media(self, media_id: str, media_type: str = "image") -> str:
-        """Retrieve a media file from WhatsApp using its Media ID and return the URL."""
-        self.logger.info(f"Retrieving {media_type} with ID: {media_id}")
-        return await retrieve_media_url(media_id)
-
     async def download_media(self, media_id: str, media_type: str = "image") -> str:
         """Download a media file from WhatsApp and save it locally."""
         self.logger.info(f"Downloading {media_type} with ID: {media_id}")

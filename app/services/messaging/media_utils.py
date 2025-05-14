@@ -28,6 +28,8 @@ async def retrieve_media_url(media_id: str) -> Optional[str]:
 
             data = response.json()
 
+            print("xnxx", data)
+
             # Store the URL for later use
             if "url" in data:
                 logger.info(f"Successfully retrieved media URL for ID {media_id}")

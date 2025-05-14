@@ -2,12 +2,16 @@ from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.params import Query
+
 from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.api.webhook import verify_webhook, handle_message
 from app.api.auth.router import auth_router
+from app.api.media_proxy import router as media_proxy_router
+
+
 from .middleware import CustomJWTAuthMiddleware
 from app.db import Base, engine, get_db
 from app.services.auth.whatsapp import AuthService
@@ -70,10 +74,12 @@ app.add_middleware(
         r"^/api/auth/login$",
         r"^/api/auth/session/refresh$",
         r"^/favicon\\.ico$",
+        r"^/api/media-proxy.*$",
     ],
 )
 
 app.include_router(auth_router, prefix="/api")
+app.include_router(media_proxy_router, prefix="/api", tags=["Media"])
 
 
 @app.get("/", tags=["root"])

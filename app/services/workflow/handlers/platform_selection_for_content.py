@@ -115,7 +115,7 @@ class PlatformSelectionForContentHandler(BaseHandler):
                     phone_number=client_id,
                 )
             except Exception as e:
-                # Fallback to text message
+                self.logger.error(f"Error sending interactive buttons: {e}")
                 platforms_text = "\n".join(
                     [f"- {p.capitalize()}" for p in remaining_platforms]
                 )
