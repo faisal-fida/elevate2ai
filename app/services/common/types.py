@@ -85,6 +85,7 @@ class WorkflowContext:
     waiting_for_image_decision: bool = (
         False  # Flag to track if we're waiting for user's decision
     )
+    media_metadata: Optional[Dict] = None
 
     # New fields for template-based content generation
     destination_name: str = ""  # For destination templates

@@ -21,7 +21,6 @@ class SwitchboardCanvas:
     def __del__(self):
         """Ensure client is closed when the instance is destroyed"""
         if hasattr(self, "client") and self.client:
-            self.logger.debug("Closing HTTP client")
             try:
                 self.client.close()
             except Exception as e:

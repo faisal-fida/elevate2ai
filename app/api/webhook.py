@@ -59,7 +59,6 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
         message_type = message.get("type", "unknown")
 
         logger.info(f"Received {message_type} message from {sender_id}")
-        logger.debug(f"Message data: {message}")
 
         if message_type == "interactive":
             interactive = message.get("interactive", {})
@@ -84,14 +83,18 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
                 logger.info(
                     f"Received {message_type} with ID: {media_id}, mime: {media_mime}"
                 )
-                # Create a special message format that our handlers can detect
                 message_text = f"Received {message_type} with ID: {media_id}"
 
                 # Store additional metadata in context if needed
                 # This could be used later if we need to know more about the media
                 context = workflow_manager.state_manager.get_context(sender_id)
+
                 if "media_metadata" not in context:
                     context["media_metadata"] = {}
+                elif not isinstance(context["media_metadata"], dict):
+                    context["media_metadata"] = {}
+
+                # Store media metadata in context
                 context["media_metadata"][media_id] = {
                     "type": message_type,
                     "mime_type": media_mime,
@@ -107,7 +110,6 @@ async def handle_message(data: Dict[Any, Any]) -> Dict[str, Any]:
         elif message_type == "text":
             message_text = message.get("text", {}).get("body", "")
         else:
-            # Handle other message types or ignore them
             return {
                 "status": "success",
                 "message": f"Non-text message of type {message_type} acknowledged but not processed",

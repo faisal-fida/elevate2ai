@@ -46,7 +46,9 @@ class StateManager:
 
     def set_state(self, client_id: str, state: WorkflowState) -> None:
         """Set state for a client."""
-        self.logger.info(f"Setting state for {client_id} to {state.name}")
+        self.logger.warning(
+            f"Setting state for {client_id} to {state.name} with context {self.client_contexts.get(client_id)}"
+        )
         self.client_states[client_id] = state
 
     def get_context(self, client_id: str) -> Dict[str, Any]:
