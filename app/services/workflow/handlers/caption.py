@@ -3,7 +3,7 @@ from app.services.messaging.client import MessagingClient
 from app.services.messaging.state_manager import StateManager, WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
 from app.services.content.generator import ContentGenerator
-from app.constants import MESSAGES, TEMPLATE_CONFIG
+from app.constants import MESSAGES, template_manager
 from app.services.common.types import WorkflowContext, MediaItem
 from app.services.messaging.media_utils import save_whatsapp_image, cleanup_client_media
 
@@ -62,13 +62,9 @@ class CaptionHandler(BaseHandler):
                     context.template_id = template_id
                     context.template_type = context.selected_content_type
 
-                    # Check template requirements
-                    template = TEMPLATE_CONFIG["templates"].get(template_id, {})
-                    required_keys = template.get("required_keys", [])
-
                     # If we already have a selected_image and template needs event_image, set it
                     if (
-                        "event_image" in required_keys
+                        "event_image" in template_manager.get_required_keys(template_id)
                         and context.selected_image
                         and not context.event_image
                     ):
@@ -112,9 +108,9 @@ class CaptionHandler(BaseHandler):
                     user_inputs["event_image"] = context.event_image
                 elif context.selected_image:
                     # If template needs event_image and we have selected_image, use it
-                    template = TEMPLATE_CONFIG["templates"].get(context.template_id, {})
-                    required_keys = template.get("required_keys", [])
-                    if "event_image" in required_keys:
+                    if "event_image" in template_manager.get_required_keys(
+                        context.template_id
+                    ):
                         user_inputs["event_image"] = context.selected_image
                         context.event_image = context.selected_image
                         self.logger.info(
@@ -180,9 +176,7 @@ class CaptionHandler(BaseHandler):
         if not context.template_id:
             return False  # No template found, no additional fields needed
 
-        # Get template details
-        template = TEMPLATE_CONFIG["templates"].get(context.template_id, {})
-        required_keys = template.get("required_keys", [])
+        required_keys = template_manager.get_required_keys(context.template_id)
 
         # If event_image is required and we have selected_image, use that
         if (
@@ -370,11 +364,9 @@ class CaptionHandler(BaseHandler):
 
                     # Also set event_image if needed by template
                     if context.template_id:
-                        template = TEMPLATE_CONFIG["templates"].get(
-                            context.template_id, {}
-                        )
-                        required_keys = template.get("required_keys", [])
-                        if "event_image" in required_keys:
+                        if "event_image" in template_manager.get_required_keys(
+                            context.template_id
+                        ):
                             context.event_image = public_url
                             self.logger.info(
                                 "Also setting event_image to the same URL for template compatibility"
@@ -418,14 +410,13 @@ class CaptionHandler(BaseHandler):
             public_url = await save_whatsapp_image(media_id, client_id)
 
             if public_url:
-                # Store the public URL in the context
                 context.selected_image = public_url
 
                 # Also set event_image if needed by template
                 if context.template_id:
-                    template = TEMPLATE_CONFIG["templates"].get(context.template_id, {})
-                    required_keys = template.get("required_keys", [])
-                    if "event_image" in required_keys:
+                    if "event_image" in template_manager.get_required_keys(
+                        context.template_id
+                    ):
                         context.event_image = public_url
                         self.logger.info(
                             "Also setting event_image to the same URL for template compatibility"
@@ -466,9 +457,9 @@ class CaptionHandler(BaseHandler):
 
             # Also set event_image if needed by template
             if context.template_id:
-                template = TEMPLATE_CONFIG["templates"].get(context.template_id, {})
-                required_keys = template.get("required_keys", [])
-                if "event_image" in required_keys:
+                if "event_image" in template_manager.get_required_keys(
+                    context.template_id
+                ):
                     context.event_image = message
                     self.logger.info(
                         "Also setting event_image to the same URL for template compatibility"

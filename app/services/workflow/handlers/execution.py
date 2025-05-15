@@ -3,14 +3,10 @@ import random
 from app.services.messaging.client import MessagingClient
 from app.services.messaging.state_manager import StateManager, WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
-from app.constants import MESSAGES, TEMPLATE_CONFIG
+from app.constants import MESSAGES, template_manager
 from app.services.common.types import WorkflowContext
 from app.services.messaging.media_utils import cleanup_client_media
 from app.services.content.switchboard import edit_media
-from app.services.content.template_utils import (
-    validate_template_inputs,
-    build_template_payload,
-)
 
 
 class ExecutionHandler(BaseHandler):
@@ -222,9 +218,9 @@ class ExecutionHandler(BaseHandler):
                             "351915950259"  # Default template client ID
                         )
                         template_id = f"{platform}_{template_client_id}_{content_type}"
-                        template = TEMPLATE_CONFIG["templates"].get(template_id, {})
-                        required_keys = template.get("required_keys", [])
-                        if "event_image" in required_keys:
+                        if "event_image" in template_manager.get_required_keys(
+                            template_id
+                        ):
                             template_data["event_image"] = context.selected_image
                             self.logger.info(
                                 "Using selected_image as event_image for template compatibility"
@@ -234,8 +230,8 @@ class ExecutionHandler(BaseHandler):
                     # Use the default template ID for validation
                     template_client_id = "351915950259"  # Default template client ID
                     template_id = f"{platform}_{template_client_id}_{content_type}"
-                    is_valid, error_message, validated_data = validate_template_inputs(
-                        template_id, template_data
+                    is_valid, error_message, validated_data = (
+                        template_manager.validate_inputs(template_id, template_data)
                     )
 
                     if not is_valid:
@@ -247,7 +243,7 @@ class ExecutionHandler(BaseHandler):
                         continue
 
                     # Build final template payload
-                    template_payload = build_template_payload(
+                    template_payload = template_manager.build_payload(
                         template_id, validated_data
                     )
 
@@ -352,8 +348,8 @@ class ExecutionHandler(BaseHandler):
                     # Use the default template ID for validation
                     template_client_id = "351915950259"  # Default template client ID
                     template_id = f"{platform}_{template_client_id}_{content_type}"
-                    is_valid, error_message, validated_data = validate_template_inputs(
-                        template_id, template_data
+                    is_valid, error_message, validated_data = (
+                        template_manager.validate_inputs(template_id, template_data)
                     )
 
                     if not is_valid:
@@ -365,7 +361,7 @@ class ExecutionHandler(BaseHandler):
                         continue
 
                     # Build final template payload
-                    template_payload = build_template_payload(
+                    template_payload = template_manager.build_payload(
                         template_id, validated_data
                     )
 

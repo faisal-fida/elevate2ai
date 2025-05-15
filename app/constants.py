@@ -66,8 +66,8 @@ OPENAI_PROMPTS = {
 }
 
 
-# TEMPLATE_CONFIG is a dictionary that contains the templates for the different types of content.
-TEMPLATE_CONFIG = {
+# Raw template configuration data
+_TEMPLATE_DATA = {
     "instagram_351915950259_destination": {
         "type": "destination",
         "required_keys": ["main_image", "destination_name", "logo"],

@@ -2,7 +2,7 @@ from typing import Tuple, List, Dict, Any, Optional
 from app.services.common.logging import setup_logger
 from .openai_service import AsyncOpenAIService
 from .image_service import MediaService
-from app.constants import OPENAI_PROMPTS, TEMPLATE_CONFIG
+from app.constants import OPENAI_PROMPTS, template_manager
 
 
 class ContentGenerator:
@@ -75,14 +75,14 @@ class ContentGenerator:
     async def generate_template_content(
         self, template_id: str, user_inputs: Dict[str, Any]
     ) -> Tuple[str, List[str], Dict[str, Any]]:
-        """Generate content based on a specific template from TEMPLATE_CONFIG."""
+        """Generate content based on a specific template from template_manager."""
 
         try:
-            # Get template details from TEMPLATE_CONFIG
-            template_details = TEMPLATE_CONFIG["templates"].get(template_id)
+            # Get template details from template_manager
+            template_details = template_manager.get_template(template_id)
             if not template_details:
                 self.logger.error(
-                    f"Template {template_id} not found in TEMPLATE_CONFIG"
+                    f"Template {template_id} not found in template_manager"
                 )
                 raise ValueError(f"Template {template_id} not found")
 
@@ -239,31 +239,7 @@ class ContentGenerator:
         """Find a template ID based on platform, content type and client ID."""
 
         try:
-            # Create the template ID pattern
-            template_pattern = f"{platform}_{client_id}_{content_type}"
-
-            # Look for exact match
-            if template_pattern in TEMPLATE_CONFIG["templates"]:
-                return template_pattern
-
-            # Look for matching templates by type
-            for template_id, details in TEMPLATE_CONFIG["templates"].items():
-                if (
-                    template_id.startswith(f"{platform}_")
-                    and template_id.endswith(f"_{content_type}")
-                    and details["type"] == content_type
-                ):
-                    return template_id
-
-            # Fallback to any template of matching type
-            for template_id, details in TEMPLATE_CONFIG["templates"].items():
-                if details["type"] == content_type:
-                    self.logger.warning(
-                        f"Using fallback template {template_id} for {platform}_{content_type}"
-                    )
-                    return template_id
-
-            return None
+            return template_manager.find_template(platform, content_type, client_id)
         except Exception as e:
             self.logger.error(f"Error finding template: {e}")
             return None
