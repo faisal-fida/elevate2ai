@@ -13,7 +13,6 @@ class ContentTypeHandler(BaseHandler):
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
         if message in context.common_content_types:
-            # Set content type for all platforms
             if context.content_types is None:
                 context.content_types = {}
 
@@ -22,16 +21,13 @@ class ContentTypeHandler(BaseHandler):
 
             self.state_manager.update_context(client_id, vars(context))
 
-            # For single platform selection, skip the same content confirmation
             if len(context.selected_platforms) == 1:
                 context.same_content_across_platforms = True
                 self.state_manager.update_context(client_id, vars(context))
 
-                # Move directly to caption input
                 self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
                 await self.send_message(client_id, MESSAGES["caption_prompt"])
             else:
-                # For multiple platforms, ask if user wants to use the same content
                 self.state_manager.set_state(
                     client_id, WorkflowState.SAME_CONTENT_CONFIRMATION
                 )
@@ -47,12 +43,10 @@ class ContentTypeHandler(BaseHandler):
         """Handle same content confirmation"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
-        # This method is only called for multiple platforms (All Platforms option)
         if message in ["yes", "y"]:
             context.same_content_across_platforms = True
             self.state_manager.update_context(client_id, vars(context))
 
-            # Move to caption input
             self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
             await self.send_message(client_id, MESSAGES["caption_prompt"])
 
@@ -61,7 +55,6 @@ class ContentTypeHandler(BaseHandler):
             context.current_platform_index = 0
             self.state_manager.update_context(client_id, vars(context))
 
-            # Move to platform-specific content
             self.state_manager.set_state(
                 client_id, WorkflowState.PLATFORM_SPECIFIC_CONTENT
             )
@@ -75,7 +68,6 @@ class ContentTypeHandler(BaseHandler):
         """Handle platform-specific content selection"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
-        # If this is not the first call, process the message
         if message and context.current_platform_index > 0:
             current_platform = context.selected_platforms[
                 context.current_platform_index - 1
@@ -85,7 +77,6 @@ class ContentTypeHandler(BaseHandler):
             ]
 
             if message in platform_content_types:
-                # Set content type for the current platform
                 if context.content_types is None:
                     context.content_types = {}
 
@@ -102,7 +93,6 @@ class ContentTypeHandler(BaseHandler):
                 )
                 return
 
-        # Move to the next platform or to caption input
         if context.current_platform_index < len(context.selected_platforms):
             current_platform = context.selected_platforms[
                 context.current_platform_index
@@ -116,7 +106,6 @@ class ContentTypeHandler(BaseHandler):
                 SOCIAL_MEDIA_PLATFORMS[current_platform]["content_types"],
             )
         else:
-            # All platforms have been processed, move to caption input
             self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
             await self.send_message(client_id, MESSAGES["caption_prompt"])
 
@@ -124,18 +113,14 @@ class ContentTypeHandler(BaseHandler):
         self, client_id: str, content_types: List[str]
     ) -> None:
         """Send content type options to the client"""
-        # Send message first to provide context
         await self.send_message(client_id, MESSAGES["content_type_selection"])
 
-        # Check if there are any content types
         if not content_types:
             await self.send_message(
                 client_id,
                 "No common content types found across the selected platforms. Please start over and select different platforms.",
             )
-            # Reset to platform selection
             self.state_manager.set_state(client_id, WorkflowState.PLATFORM_SELECTION)
-            # Send platform options again
             from app.services.workflow.handlers.platform_selection import (
                 PlatformSelectionHandler,
             )
@@ -144,12 +129,10 @@ class ContentTypeHandler(BaseHandler):
             await platform_handler.send_platform_options(client_id)
             return
 
-        # Create buttons for each content type
         buttons = []
         for content_type in content_types:
             buttons.append({"id": content_type, "title": content_type.capitalize()})
 
-        # Send interactive buttons (will automatically use list if > 3 buttons)
         await self.client.send_interactive_buttons(
             header_text="Content Type Selection",
             body_text="Select a content type for your post:",
@@ -159,10 +142,8 @@ class ContentTypeHandler(BaseHandler):
 
     async def send_same_content_confirmation(self, client_id: str) -> None:
         """Send same content confirmation to the client"""
-        # Create yes/no buttons
         buttons = [{"id": "yes", "title": "Yes"}, {"id": "no", "title": "No"}]
 
-        # Send interactive buttons
         await self.client.send_interactive_buttons(
             header_text="Content Confirmation",
             body_text=MESSAGES["same_content_prompt"],
@@ -174,7 +155,6 @@ class ContentTypeHandler(BaseHandler):
         self, client_id: str, platform: str, content_types: List[str]
     ) -> None:
         """Send platform-specific content types to the client"""
-        # Send message first to provide context
         await self.send_message(
             client_id,
             MESSAGES["platform_specific_content"].format(
@@ -182,15 +162,12 @@ class ContentTypeHandler(BaseHandler):
             ),
         )
 
-        # Check if there are any content types
         if not content_types:
             await self.send_message(
                 client_id,
                 f"No content types available for {platform.capitalize()}. Please start over and select different platforms.",
             )
-            # Reset to platform selection
             self.state_manager.set_state(client_id, WorkflowState.PLATFORM_SELECTION)
-            # Send platform options again
             from app.services.workflow.handlers.platform_selection import (
                 PlatformSelectionHandler,
             )
@@ -199,12 +176,10 @@ class ContentTypeHandler(BaseHandler):
             await platform_handler.send_platform_options(client_id)
             return
 
-        # Create buttons for each content type
         buttons = []
         for content_type in content_types:
             buttons.append({"id": content_type, "title": content_type.capitalize()})
 
-        # Send interactive buttons (will automatically use list if > 3 buttons)
         await self.client.send_interactive_buttons(
             header_text=f"{platform.capitalize()} Content",
             body_text=f"Select a content type for {platform.capitalize()}:",

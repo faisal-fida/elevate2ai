@@ -3,7 +3,8 @@ import random
 from app.services.messaging.client import MessagingClient
 from app.services.messaging.state_manager import StateManager, WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
-from app.constants import MESSAGES, template_manager
+from app.constants import MESSAGES
+from app.services.content.template_manager import template_manager
 from app.services.common.types import WorkflowContext
 from app.services.messaging.media_utils import cleanup_client_media
 from app.services.content.switchboard import edit_media

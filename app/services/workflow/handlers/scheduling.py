@@ -12,41 +12,31 @@ class SchedulingHandler(BaseHandler):
         """Handle scheduling selection"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
-        # Process the schedule selection
         if message.lower() in ["1", "now", "post now"]:
             context.schedule_time = "now"
             self.state_manager.update_context(client_id, context.model_dump())
-
-            # Move to confirmation
             self.state_manager.set_state(client_id, WorkflowState.CONFIRMATION)
             await self.send_confirmation_summary(client_id, context)
 
         elif message.lower() in ["2", "later", "later today"]:
             context.schedule_time = "later today"
             self.state_manager.update_context(client_id, context.model_dump())
-
-            # Move to confirmation
             self.state_manager.set_state(client_id, WorkflowState.CONFIRMATION)
             await self.send_confirmation_summary(client_id, context)
 
         elif message.lower() in ["3", "tomorrow"]:
             context.schedule_time = "tomorrow"
             self.state_manager.update_context(client_id, context.model_dump())
-
-            # Move to confirmation
             self.state_manager.set_state(client_id, WorkflowState.CONFIRMATION)
             await self.send_confirmation_summary(client_id, context)
 
         elif message.lower() in ["4", "next week"]:
             context.schedule_time = "next week"
             self.state_manager.update_context(client_id, context.model_dump())
-
-            # Move to confirmation
             self.state_manager.set_state(client_id, WorkflowState.CONFIRMATION)
             await self.send_confirmation_summary(client_id, context)
 
         else:
-            # Invalid selection
             await self.send_message(
                 client_id,
                 "Please select a valid scheduling option: 'now', 'later today', 'tomorrow', or 'next week'.",
@@ -55,7 +45,6 @@ class SchedulingHandler(BaseHandler):
 
     async def send_scheduling_options(self, client_id: str) -> None:
         """Send scheduling options to the client"""
-        # Create buttons for scheduling options
         buttons = [
             {"id": "later", "title": "Later Today"},
             {"id": "tomorrow", "title": "Tomorrow"},
@@ -63,10 +52,7 @@ class SchedulingHandler(BaseHandler):
             {"id": "now", "title": "Post Now"},
         ]
 
-        # Send message first to provide context
         await self.send_message(client_id, MESSAGES["schedule_prompt"])
-
-        # Send interactive buttons (will automatically use list if > 3 buttons)
         await self.client.send_interactive_buttons(
             header_text="Schedule Selection",
             body_text="When would you like to schedule your post?",
@@ -78,12 +64,10 @@ class SchedulingHandler(BaseHandler):
         self, client_id: str, context: WorkflowContext
     ) -> None:
         """Send confirmation summary to the client"""
-        # Format platforms and content type
         platforms = ", ".join(
             platform.capitalize() for platform in context.selected_platforms
         )
 
-        # Create summary message
         summary = MESSAGES["confirmation_summary"].format(
             content_type=context.selected_content_type.capitalize(),
             platforms=platforms,
@@ -91,10 +75,7 @@ class SchedulingHandler(BaseHandler):
             caption=context.caption,
         )
 
-        # Check if we're including images
         include_images = getattr(context, "include_images", True)
-
-        # Send the selected image with the summary if including images
         if include_images and context.selected_image:
             await self.client.send_media(
                 media_items=[
@@ -103,12 +84,9 @@ class SchedulingHandler(BaseHandler):
                 phone_number=client_id,
             )
         else:
-            # If no image is selected or not including images, just send the summary as a message
             await self.send_message(client_id, summary)
 
         await asyncio.sleep(1)
-
-        # Send confirmation buttons
         buttons = [
             {"id": "yes", "title": "Yes, Continue"},
             {"id": "no", "title": "No, Start Over"},

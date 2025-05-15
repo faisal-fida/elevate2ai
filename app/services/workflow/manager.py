@@ -48,37 +48,23 @@ class WorkflowManager:
         message_type: str = "text",
         is_media_message: bool = False,
     ) -> None:
-        """
-        Add an incoming message to the client's queue and ensure the processor is running.
-
-        Args:
-            client_id: The WhatsApp user ID
-            message: The message text or structured media message
-            message_type: The type of message (text, image, video, document, interactive)
-            is_media_message: Flag indicating if this is a media message
-        """
-        # Store message metadata in context for easier access by handlers
+        """Add an incoming message to the client's queue and ensure the processor is running."""
         context = self.state_manager.get_context(client_id)
         context["current_message_type"] = message_type
         context["is_media_message"] = is_media_message
 
-        # For media messages, parse the structured message format
         if is_media_message and message.startswith("MEDIA_MESSAGE:"):
             parts = message.split(":")
             if len(parts) >= 3:
                 media_type = parts[1]
                 media_id = parts[2]
-                # These values are already stored in context by the webhook handler
-                # but we'll log them here for clarity
                 self.logger.info(f"Processing {media_type} message with ID: {media_id}")
 
         self.state_manager.update_context(client_id, context)
 
-        # Add message to processing queue
         queue = self._get_message_queue(client_id)
         await queue.put(message)
 
-        # Start or continue the message processor
         if (
             client_id not in self.client_processing_tasks
             or self.client_processing_tasks[client_id].done()
@@ -123,24 +109,17 @@ class WorkflowManager:
                     WorkflowState.VIDEO_SELECTION: self.caption_handler.handle,
                 }
 
-                # Handle structured media messages
                 if message_text.startswith("MEDIA_MESSAGE:"):
-                    # Parse the structured message
                     parts = message_text.split(":")
                     if len(parts) >= 3:
                         media_type = parts[1]
                         media_id = parts[2]
 
-                        # Get context to access metadata
                         context = self.state_manager.get_context(client_id)
-
-                        # Process according to the current state
                         if current_state == WorkflowState.WAITING_FOR_MEDIA_UPLOAD:
-                            # Get media URL using our utility function
                             media_url = await save_whatsapp_image(media_id, client_id)
 
                             if media_url:
-                                # Store the URL in context for the handler to use
                                 context["media_url"] = media_url
                                 self.state_manager.update_context(client_id, context)
 
@@ -151,7 +130,6 @@ class WorkflowManager:
                                     f"Successfully retrieved {media_type} URL: {media_url[:50]}..."
                                 )
                             else:
-                                # Notify user of the failure
                                 await self.send_message(
                                     client_id,
                                     f"I couldn't process your {media_type}. Please try uploading it again.",
@@ -159,13 +137,11 @@ class WorkflowManager:
                                 queue.task_done()
                                 continue
 
-                # Get the appropriate handler for the current state
                 handler = handler_map.get(current_state)
 
                 if handler:
                     context = self.state_manager.get_context(client_id)
 
-                    # For media messages, don't lowercase the message as it might contain a URL path
                     if message_text.startswith(
                         "MEDIA_MESSAGE:"
                     ) or message_text.startswith("/media/"):
@@ -207,7 +183,6 @@ class WorkflowManager:
     ) -> None:  # Renamed variable
         """Handle the initial state"""
         if message_text in ["hi", "hello", "hey", "hii"]:
-            # Start with content type selection
             self.state_manager.set_state(
                 client_id, WorkflowState.CONTENT_TYPE_SELECTION
             )

@@ -12,18 +12,12 @@ class PlatformSelectionForContentHandler(BaseHandler):
         """Handle platform selection for content type"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
-        # Handle "all" option
         if message == "all":
-            # Select all supported platforms
             context.selected_platforms = context.supported_platforms.copy()
-
-            # Store the content type for all platforms
             for platform in context.selected_platforms:
                 context.content_types[platform] = context.selected_content_type
 
             self.state_manager.update_context(client_id, context.model_dump())
-
-            # Send confirmation message
             platforms_str = ", ".join(
                 platform.capitalize() for platform in context.selected_platforms
             )
@@ -31,22 +25,15 @@ class PlatformSelectionForContentHandler(BaseHandler):
                 client_id, f"You've selected all platforms: {platforms_str}"
             )
 
-            # Move to caption input
             self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
             await self.send_message(
                 client_id, "Great! Now, please enter the caption for your post."
             )
-        # Check if this is a valid platform selection
         elif message in context.supported_platforms:
-            # Add to selected platforms if not already there
             if message not in context.selected_platforms:
                 context.selected_platforms.append(message)
-
-                # Store the content type for this platform
                 context.content_types[message] = context.selected_content_type
-
                 self.state_manager.update_context(client_id, context.model_dump())
-
                 await self.send_message(
                     client_id, f"Added {message} to your selected platforms."
                 )
@@ -55,10 +42,8 @@ class PlatformSelectionForContentHandler(BaseHandler):
                     client_id, f"You've already selected {message}."
                 )
 
-            # Ask if they want to add more platforms
             await self.ask_add_more_platforms(client_id)
         elif message in ["done", "no", "n", "finished"]:
-            # Check if at least one platform is selected
             if not context.selected_platforms:
                 await self.send_message(
                     client_id, "Please select at least one platform before proceeding."
@@ -70,13 +55,11 @@ class PlatformSelectionForContentHandler(BaseHandler):
                 )
                 return
 
-            # Move to caption input
             self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
             await self.send_message(
                 client_id, "Great! Now, please enter the caption for your post."
             )
         else:
-            # Invalid platform selection
             await self.send_message(
                 client_id,
                 f"Sorry, '{message}' is not a valid platform for {context.selected_content_type} content.",
@@ -89,7 +72,6 @@ class PlatformSelectionForContentHandler(BaseHandler):
         """Ask if the user wants to add more platforms"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
-        # Get remaining platforms
         remaining_platforms = [
             p
             for p in context.supported_platforms
@@ -97,16 +79,13 @@ class PlatformSelectionForContentHandler(BaseHandler):
         ]
 
         if remaining_platforms:
-            # Create buttons for the remaining platforms
             buttons = [
                 {"id": platform, "title": platform.capitalize()}
                 for platform in remaining_platforms
             ]
 
-            # Add a "Done" button
             buttons.append({"id": "done", "title": "Done"})
 
-            # Send interactive buttons
             try:
                 await self.client.send_interactive_buttons(
                     header_text="Platform Selection",
@@ -124,7 +103,6 @@ class PlatformSelectionForContentHandler(BaseHandler):
                     f"Would you like to add more platforms? Currently selected: {', '.join(context.selected_platforms)}\n\nAvailable platforms:\n{platforms_text}\n\nReply with a platform name or 'done' to continue.",
                 )
         else:
-            # All platforms are selected, move to caption input
             self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
             await self.send_message(
                 client_id,
@@ -135,16 +113,13 @@ class PlatformSelectionForContentHandler(BaseHandler):
         self, client_id: str, content_type: str, supported_platforms: List[str]
     ) -> None:
         """Send platform options for the selected content type"""
-        # Create buttons for each supported platform
         buttons = []
         for platform in supported_platforms:
             buttons.append({"id": platform, "title": platform.capitalize()})
 
-        # Add "All" option if there are multiple platforms
         if len(supported_platforms) > 1:
             buttons.append({"id": "all", "title": "All Platforms"})
 
-        # Send message with platform options
         await self.client.send_interactive_buttons(
             header_text=f"Platforms for {content_type.capitalize()}",
             body_text=MESSAGES["platform_selection_for_content"].format(

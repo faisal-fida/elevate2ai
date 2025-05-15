@@ -1,6 +1,7 @@
 import httpx
 from typing import Dict, Any
-from app.constants import SOCIAL_MEDIA_PLATFORMS, template_manager
+from app.constants import SOCIAL_MEDIA_PLATFORMS
+from app.services.content.template_manager import template_manager
 from app.config import settings
 from app.services.common.logging import setup_logger
 

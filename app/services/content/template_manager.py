@@ -1,12 +1,13 @@
 from typing import Dict, Any, List, Optional, Tuple
+from app.constants import _TEMPLATE_DATA
 
 
 class TemplateManager:
     """Centralized manager for accessing and manipulating content templates"""
 
-    def __init__(self, templates: Dict[str, Dict[str, Any]]):
+    def __init__(self):
         """Initialize with templates dictionary"""
-        self.templates = templates
+        self.templates = _TEMPLATE_DATA
 
     def get_template(self, template_id: str) -> Optional[Dict[str, Any]]:
         """Get template details by ID"""
@@ -140,3 +141,6 @@ class TemplateManager:
             payload[key] = value
 
         return payload
+
+
+template_manager = TemplateManager()

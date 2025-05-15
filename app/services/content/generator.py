@@ -2,7 +2,8 @@ from typing import Tuple, List, Dict, Any, Optional
 from app.services.common.logging import setup_logger
 from .openai_service import AsyncOpenAIService
 from .image_service import MediaService
-from app.constants import OPENAI_PROMPTS, template_manager
+from app.constants import OPENAI_PROMPTS
+from app.services.content.template_manager import template_manager
 
 
 class ContentGenerator:
