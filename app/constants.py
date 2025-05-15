@@ -68,50 +68,50 @@ OPENAI_PROMPTS = {
 
 # TEMPLATE_CONFIG is a dictionary that contains the templates for the different types of content.
 TEMPLATE_CONFIG = {
-    "templates": {
-        # Destination Group
-        "instagram_351915950259_destination": {
-            "type": "destination",
-            "required_keys": ["main_image", "destination_name"],
-        },
-        "instagram_351915950259_promo": {
-            "type": "destination",
-            "required_keys": [
-                "main_image",
-                "destination_name",
-                "caption_text",
-                "price_text",
-            ],
-        },
-        "tiktok_351915950259_promo": {
-            "type": "destination",
-            "required_keys": [
-                "video_background",
-                "destination_name",
-                "caption_text",
-                "price_text",
-            ],
-        },
-        # Events Group
-        "instagram_351915950259_events": {
-            "type": "events",
-            "required_keys": [
-                "event_image",
-                "event_name",
-            ],  # `event_image` implies client upload
-        },
-        "linkedin_351915950259_events": {
-            "type": "events",
-            "required_keys": ["event_image", "event_name"],
-        },
-        # Caption-Only Group
-        "instagram_351915950259_tips": {
-            "type": "caption_only",
-            "required_keys": ["main_image", "caption_text"],
-        },
-        "instagram_351915950259_reels": {
-            "type": "caption_only",
-            "required_keys": ["video_background", "caption_text"],
-        },
-    }
+    "instagram_351915950259_destination": {
+        "type": "destination",
+        "required_keys": ["main_image", "destination_name", "logo"],
+    },
+    "instagram_351915950259_promo": {
+        "type": "destination",
+        "required_keys": [
+            "main_image",
+            "destination_name",
+            "caption_text",
+            "price_text",
+            "logo",
+        ],
+    },
+    "tiktok_351915950259_promo": {
+        "type": "destination",
+        "required_keys": [
+            "video_background",
+            "destination_name",
+            "caption_text",
+            "price_text",
+            "logo",
+        ],
+    },
+    # Events Group
+    "instagram_351915950259_events": {
+        "type": "events",
+        "required_keys": [
+            "event_image",
+            "event_name",
+            "logo",
+        ],  # `event_image` implies client upload
+    },
+    "linkedin_351915950259_events": {
+        "type": "events",
+        "required_keys": ["event_image", "event_name", "logo"],
+    },
+    # Caption-Only Group
+    "instagram_351915950259_tips": {
+        "type": "caption_only",
+        "required_keys": ["main_image", "caption_text", "logo"],
+    },
+    "instagram_351915950259_reels": {
+        "type": "caption_only",
+        "required_keys": ["video_background", "caption_text", "logo"],
+    },
 }
