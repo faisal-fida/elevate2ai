@@ -1,12 +1,5 @@
-"""
-State management for WhatsApp conversations.
-
-This module provides tools to track and manage the state of user conversations,
-including workflow state transitions and context persistence.
-"""
-
 from enum import Enum, auto
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 import json
 
 from app.services.common.logging import setup_logger
@@ -14,13 +7,6 @@ from app.services.common.types import WorkflowStateType
 
 
 class WorkflowState(Enum):
-    """
-    Enumeration of possible conversation workflow states.
-
-    These states represent different stages in the conversation flow
-    and determine how user messages are processed.
-    """
-
     INIT = auto()
     CONTENT_TYPE_SELECTION = auto()
     PLATFORM_SELECTION = auto()
@@ -36,19 +22,13 @@ class WorkflowState(Enum):
     WAITING_FOR_DESTINATION = auto()
     WAITING_FOR_EVENT_NAME = auto()
     WAITING_FOR_PRICE = auto()
+    WAITING_FOR_HEADLINE = auto()
     IMAGE_INCLUSION_DECISION = auto()
+    IMAGE_SELECTION = auto()  # New state for selecting from multiple images
 
 
 class StateManager:
-    """
-    Manages conversation state and context for WhatsApp users.
-
-    This class provides methods to track the current state of a conversation,
-    store context data for each user, and manage state transitions.
-    """
-
     def __init__(self):
-        """Initialize the state manager with empty state and context stores."""
         self.logger = setup_logger(__name__)
         self._state_store: Dict[str, WorkflowState] = {}
         self._context_store: Dict[str, Dict[str, Any]] = {}

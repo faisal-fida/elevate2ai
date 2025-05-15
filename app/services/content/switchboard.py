@@ -79,10 +79,17 @@ class SwitchboardService:
                 template_data[key] = (
                     "https://images.unsplash.com/photo-1454496522488-7a8e488e8606"
                 )
-        client_id = "351915950259"  #! TODO: remove this hardcoding
+            if key == "logo":
+                template_data[key] = (
+                    "https://images.unsplash.com/photo-1454496522488-7a8e488e8606"
+                )
+
         self.logger.info(f"Editing image with template data: {template_data}")
         payload = self.build_payload(client_id, template_data, platform, post_type)
         response = self.client.post(self.base_url, json=payload)
         response.raise_for_status()
         self.logger.info(f"Successfully edited image with payload: {payload}")
         return response.json()
+
+
+switchboard_service = SwitchboardService()

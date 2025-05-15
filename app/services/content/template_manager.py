@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional, Tuple
-from app.constants import _TEMPLATE_DATA
+from app.constants import TEMPLATE_DATA
 
 
 class TemplateManager:
@@ -7,7 +7,7 @@ class TemplateManager:
 
     def __init__(self):
         """Initialize with templates dictionary"""
-        self.templates = _TEMPLATE_DATA
+        self.templates = TEMPLATE_DATA
 
     def get_template(self, template_id: str) -> Optional[Dict[str, Any]]:
         """Get template details by ID"""

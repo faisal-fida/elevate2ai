@@ -102,11 +102,13 @@ class WorkflowManager:
                     # New template-specific input states
                     WorkflowState.WAITING_FOR_DESTINATION: self.caption_handler.handle,
                     WorkflowState.WAITING_FOR_EVENT_NAME: self.caption_handler.handle,
+                    WorkflowState.WAITING_FOR_HEADLINE: self.caption_handler.handle,
                     WorkflowState.WAITING_FOR_PRICE: self.caption_handler.handle,
                     # Media selection states
                     WorkflowState.MEDIA_SOURCE_SELECTION: self.caption_handler.handle,
                     WorkflowState.WAITING_FOR_MEDIA_UPLOAD: self.caption_handler.handle,
                     WorkflowState.VIDEO_SELECTION: self.caption_handler.handle,
+                    WorkflowState.IMAGE_SELECTION: self.caption_handler.handle,
                 }
 
                 if message_text.startswith("MEDIA_MESSAGE:"):

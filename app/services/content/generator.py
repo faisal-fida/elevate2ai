@@ -3,7 +3,8 @@ from app.services.common.logging import setup_logger
 from .openai_service import AsyncOpenAIService
 from .image_service import MediaService
 from app.constants import OPENAI_PROMPTS
-from app.services.content.template_manager import template_manager
+from app.services.content.template_service import template_service
+from app.services.content.template_config import get_template_config
 
 
 class ContentGenerator:
@@ -79,19 +80,29 @@ class ContentGenerator:
         """Generate content based on a specific template from template_manager."""
 
         try:
-            # Get template details from template_manager
-            template_details = template_manager.get_template(template_id)
-            if not template_details:
-                self.logger.error(
-                    f"Template {template_id} not found in template_manager"
-                )
-                raise ValueError(f"Template {template_id} not found")
+            # Extract platform and content_type from template_id
+            parts = template_id.split("_")
+            if len(parts) < 3:
+                self.logger.error(f"Invalid template ID format: {template_id}")
+                raise ValueError(f"Invalid template ID format: {template_id}")
 
-            template_type = template_details.get("type", "generic")
-            required_keys = template_details.get("required_keys", [])
+            platform = parts[0]
+            content_type = parts[2]
+
+            # Get template details using the template service
+            template_config = get_template_config(platform, content_type)
+            if not template_config:
+                self.logger.error(
+                    f"Template config not found for {platform}_{content_type}"
+                )
+                raise ValueError(
+                    f"Template config not found for {platform}_{content_type}"
+                )
+
+            template_type = template_config.type
+            required_keys = template_service.get_required_fields(platform, content_type)
 
             # Check if this is a platform that requires video (like TikTok)
-            platform = template_id.split("_")[0] if "_" in template_id else ""
             is_video_platform = platform.lower() == "tiktok"
 
             # Determine if this is a video-based template
@@ -187,9 +198,10 @@ class ContentGenerator:
                     )
                     media_urls = ["https://example.com/mock-image.jpg"] * 4
 
-                # Set main_image in template data
+                # Store all media URLs in template data for selection
                 if media_urls:
-                    template_data["main_image"] = media_urls[0]
+                    # We'll let the user select which image to use
+                    template_data["media_options"] = media_urls
 
             # Handle video content
             elif is_video_content:
@@ -211,9 +223,10 @@ class ContentGenerator:
                         "https://example.com/mock-video4.mp4",
                     ]
 
-                # Set video_background in template data
+                # Store all video URLs in template data for selection
                 if media_urls:
-                    template_data["video_background"] = media_urls[0]
+                    # We'll let the user select which video to use
+                    template_data["media_options"] = media_urls
 
             # Create full template data with all required fields
             for key in required_keys:
@@ -240,7 +253,8 @@ class ContentGenerator:
         """Find a template ID based on platform, content type and client ID."""
 
         try:
-            return template_manager.find_template(platform, content_type, client_id)
+            # Use the template service to get the template ID
+            return template_service.get_template_id(platform, content_type, client_id)
         except Exception as e:
             self.logger.error(f"Error finding template: {e}")
             return None

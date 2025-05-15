@@ -3,11 +3,12 @@ import random
 from app.services.messaging.client import MessagingClient
 from app.services.messaging.state_manager import StateManager, WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
-from app.constants import MESSAGES
+from app.constants import MESSAGES, DEFAULT_TEMPLATE_CLIENT_ID
 from app.services.content.template_manager import template_manager
+from app.services.content.template_service import template_service
 from app.services.common.types import WorkflowContext
 from app.services.messaging.media_utils import cleanup_client_media
-from app.services.content.switchboard import edit_media
+from app.services.content.switchboard import switchboard_service
 
 
 class ExecutionHandler(BaseHandler):
@@ -180,6 +181,13 @@ class ExecutionHandler(BaseHandler):
         await self.send_message(client_id, "Editing images for each platform...")
 
         try:
+            # Log the context for debugging
+            self.logger.info(
+                f"Context for {client_id}: selected_image present: {bool(context.selected_image)}"
+            )
+            if context.selected_image:
+                self.logger.info(f"Selected image: {context.selected_image[:50]}...")
+
             for platform in context.selected_platforms:
                 # Get the content type for this platform
                 content_type = context.content_types.get(
@@ -190,49 +198,28 @@ class ExecutionHandler(BaseHandler):
                 )
 
                 try:
-                    # Prepare template data
-                    template_data = {
-                        "main_image": context.selected_image,
-                        "caption_text": context.caption,
-                    }
+                    # Use the template service to prepare template data
+                    template_data = template_service.prepare_template_data(
+                        platform=platform, content_type=content_type, context=context
+                    )
 
-                    # Add context-specific data
-                    if (
-                        hasattr(context, "destination_name")
-                        and context.destination_name
-                    ):
-                        template_data["destination_name"] = context.destination_name
+                    # Log the prepared template data
+                    self.logger.info(
+                        f"Prepared template data for {platform}_{content_type}: {template_data}"
+                    )
 
-                    if hasattr(context, "event_name") and context.event_name:
-                        template_data["event_name"] = context.event_name
-
-                    if hasattr(context, "price_text") and context.price_text:
-                        template_data["price_text"] = context.price_text
-
-                    # Add event_image if it exists
-                    if hasattr(context, "event_image") and context.event_image:
-                        template_data["event_image"] = context.event_image
-                    # If event_image is required but not set, use selected_image
-                    elif context.selected_image:
-                        # Use a default template ID for compatibility
-                        template_client_id = (
-                            "351915950259"  # Default template client ID
-                        )
-                        template_id = f"{platform}_{template_client_id}_{content_type}"
-                        if "event_image" in template_manager.get_required_keys(
-                            template_id
-                        ):
-                            template_data["event_image"] = context.selected_image
-                            self.logger.info(
-                                "Using selected_image as event_image for template compatibility"
-                            )
-
-                    # Validate inputs for this template
-                    # Use the default template ID for validation
-                    template_client_id = "351915950259"  # Default template client ID
-                    template_id = f"{platform}_{template_client_id}_{content_type}"
+                    # Validate inputs for this template using the template service
                     is_valid, error_message, validated_data = (
-                        template_manager.validate_inputs(template_id, template_data)
+                        template_service.validate_template_data(
+                            platform=platform,
+                            content_type=content_type,
+                            template_data=template_data,
+                        )
+                    )
+
+                    # For backward compatibility, also get the template ID
+                    template_id = template_service.get_template_id(
+                        platform, content_type
                     )
 
                     if not is_valid:
@@ -243,13 +230,24 @@ class ExecutionHandler(BaseHandler):
                         )
                         continue
 
+                    # Double-check that main_image is set for events templates
+                    if (
+                        content_type == "events"
+                        and "main_image" not in validated_data
+                        and context.selected_image
+                    ):
+                        self.logger.info(
+                            f"Adding missing main_image to template data for events template"
+                        )
+                        validated_data["main_image"] = context.selected_image
+
                     # Build final template payload
                     template_payload = template_manager.build_payload(
                         template_id, validated_data
                     )
 
                     # Create image with Switchboard
-                    image_response = edit_media(
+                    image_response = switchboard_service.edit_media(
                         client_id=client_id,
                         template_data=template_payload,
                         platform=platform,
@@ -319,38 +317,28 @@ class ExecutionHandler(BaseHandler):
                 )
 
                 try:
-                    # Prepare template data
-                    template_data = {
-                        "caption_text": context.caption,
-                    }
+                    # Use the template service to prepare template data
+                    template_data = template_service.prepare_template_data(
+                        platform=platform, content_type=content_type, context=context
+                    )
 
-                    # Add video background if available
-                    if context.selected_video:
-                        template_data["video_background"] = context.selected_video
+                    # Log the prepared template data
+                    self.logger.info(
+                        f"Prepared template data for {platform}_{content_type} video: {template_data}"
+                    )
 
-                    # Add context-specific data
-                    if (
-                        hasattr(context, "destination_name")
-                        and context.destination_name
-                    ):
-                        template_data["destination_name"] = context.destination_name
-
-                    if hasattr(context, "event_name") and context.event_name:
-                        template_data["event_name"] = context.event_name
-
-                    if hasattr(context, "price_text") and context.price_text:
-                        template_data["price_text"] = context.price_text
-
-                    # Add event_image if it exists
-                    if hasattr(context, "event_image") and context.event_image:
-                        template_data["event_image"] = context.event_image
-
-                    # Validate inputs for this template
-                    # Use the default template ID for validation
-                    template_client_id = "351915950259"  # Default template client ID
-                    template_id = f"{platform}_{template_client_id}_{content_type}"
+                    # Validate inputs for this template using the template service
                     is_valid, error_message, validated_data = (
-                        template_manager.validate_inputs(template_id, template_data)
+                        template_service.validate_template_data(
+                            platform=platform,
+                            content_type=content_type,
+                            template_data=template_data,
+                        )
+                    )
+
+                    # For backward compatibility, also get the template ID
+                    template_id = template_service.get_template_id(
+                        platform, content_type
                     )
 
                     if not is_valid:
@@ -367,7 +355,7 @@ class ExecutionHandler(BaseHandler):
                     )
 
                     # Create video with Switchboard
-                    video_response = edit_media(
+                    video_response = switchboard_service.edit_media(
                         client_id=client_id,
                         template_data=template_payload,
                         platform=platform,

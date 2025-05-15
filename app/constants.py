@@ -11,7 +11,7 @@ MESSAGES = {
     "error": "❌ An error occurred. Please try again.",
     "content_type_selection": "👋 Now, let's create a post for your promotion. What type of content would you like to post?",
     "platform_selection_for_content": "📱 Great! For {content_type} content, you can post to these platforms. Please select one or 'All' to post to all supported platforms:",
-    "caption_prompt": "✍️ Please enter a prompt to generate the social media post:",
+    "caption_prompt": "✍️ Please provide instructions for generating your social media post:",
     "editing_confirmation": "🎨 I will process your content and post it to the selected platforms. Should I proceed?",
     "schedule_prompt": "🗓️ When would you like to post this content?",
     "confirmation_summary": "📋 Here's a summary of your post:\n\nContent Type: {content_type}\nPlatforms: {platforms}\nSchedule: {schedule}\nCaption: {caption}",
@@ -66,52 +66,66 @@ OPENAI_PROMPTS = {
 }
 
 
-# Raw template configuration data
-_TEMPLATE_DATA = {
-    "instagram_351915950259_destination": {
-        "type": "destination",
-        "required_keys": ["main_image", "destination_name", "logo"],
-    },
-    "instagram_351915950259_promo": {
-        "type": "destination",
+DEFAULT_TEMPLATE_CLIENT_ID = "923408957390"
+
+# Legacy template data - kept for backward compatibility
+# The new centralized configuration is in app/services/content/template_config.py
+TEMPLATE_DATA = {
+    # TikTok Templates
+    f"tiktok_{DEFAULT_TEMPLATE_CLIENT_ID}_promo": {
+        "type": "promo",
         "required_keys": [
-            "main_image",
             "destination_name",
-            "caption_text",
-            "price_text",
-            "logo",
-        ],
-    },
-    "tiktok_351915950259_promo": {
-        "type": "destination",
-        "required_keys": [
             "video_background",
-            "destination_name",
             "caption_text",
             "price_text",
-            "logo",
         ],
     },
-    # Events Group
-    "instagram_351915950259_events": {
-        "type": "events",
+    f"tiktok_{DEFAULT_TEMPLATE_CLIENT_ID}_generic": {
+        "type": "generic",
+        "required_keys": ["caption_text", "video_background"],
+    },
+    # Instagram Templates
+    f"instagram_{DEFAULT_TEMPLATE_CLIENT_ID}_reels": {
+        "type": "reels",
+        "required_keys": ["caption_text", "video_background"],
+    },
+    f"instagram_{DEFAULT_TEMPLATE_CLIENT_ID}_tips": {
+        "type": "tips",
+        "required_keys": ["main_image", "caption_text"],
+    },
+    f"instagram_{DEFAULT_TEMPLATE_CLIENT_ID}_promo": {
+        "type": "promo",
         "required_keys": [
-            "event_image",
-            "event_name",
-            "logo",
-        ],  # `event_image` implies client upload
+            "destination_name",
+            "main_image",
+            "caption_text",
+            "price_text",
+        ],
     },
-    "linkedin_351915950259_events": {
+    f"instagram_{DEFAULT_TEMPLATE_CLIENT_ID}_destination": {
+        "type": "destination",
+        "required_keys": ["destination_name", "main_image"],
+    },
+    f"instagram_{DEFAULT_TEMPLATE_CLIENT_ID}_events": {
         "type": "events",
-        "required_keys": ["event_image", "event_name", "logo"],
+        "required_keys": ["event_name", "main_image"],
     },
-    # Caption-Only Group
-    "instagram_351915950259_tips": {
-        "type": "caption_only",
-        "required_keys": ["main_image", "caption_text", "logo"],
+    f"instagram_{DEFAULT_TEMPLATE_CLIENT_ID}_seasonal": {
+        "type": "seasonal",
+        "required_keys": ["caption_text", "main_image"],
     },
-    "instagram_351915950259_reels": {
-        "type": "caption_only",
-        "required_keys": ["video_background", "caption_text", "logo"],
+    # LinkedIn Templates
+    f"linkedin_{DEFAULT_TEMPLATE_CLIENT_ID}_tips": {
+        "type": "tips",
+        "required_keys": ["main_image", "caption_text"],
+    },
+    f"linkedin_{DEFAULT_TEMPLATE_CLIENT_ID}_seasonal": {
+        "type": "seasonal",
+        "required_keys": ["caption_text", "main_image"],
+    },
+    f"linkedin_{DEFAULT_TEMPLATE_CLIENT_ID}_events": {
+        "type": "events",
+        "required_keys": ["event_name", "main_image"],
     },
 }

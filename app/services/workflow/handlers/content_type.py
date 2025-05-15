@@ -1,8 +1,10 @@
-from typing import List
+from typing import List, Optional
 from app.services.messaging.state_manager import WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
-from app.constants import MESSAGES, SOCIAL_MEDIA_PLATFORMS
+from app.constants import MESSAGES, SOCIAL_MEDIA_PLATFORMS, DEFAULT_TEMPLATE_CLIENT_ID
 from app.services.common.types import WorkflowContext
+from app.services.content.template_service import template_service
+from app.services.content.template_config import build_template_id
 
 
 class ContentTypeHandler(BaseHandler):
@@ -25,7 +27,14 @@ class ContentTypeHandler(BaseHandler):
                 context.same_content_across_platforms = True
                 self.state_manager.update_context(client_id, vars(context))
 
+                # Set state to CAPTION_INPUT
                 self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
+
+                # Check if we need to collect template-specific fields first
+                if await self.check_template_fields(client_id, context):
+                    return  # Template fields are being collected
+
+                # If no template fields needed, send the caption prompt
                 await self.send_message(client_id, MESSAGES["caption_prompt"])
             else:
                 self.state_manager.set_state(
@@ -47,7 +56,14 @@ class ContentTypeHandler(BaseHandler):
             context.same_content_across_platforms = True
             self.state_manager.update_context(client_id, vars(context))
 
+            # Set state to CAPTION_INPUT
             self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
+
+            # Check if we need to collect template-specific fields first
+            if await self.check_template_fields(client_id, context):
+                return  # Template fields are being collected
+
+            # If no template fields needed, send the caption prompt
             await self.send_message(client_id, MESSAGES["caption_prompt"])
 
         elif message in ["no", "n"]:
@@ -106,7 +122,14 @@ class ContentTypeHandler(BaseHandler):
                 SOCIAL_MEDIA_PLATFORMS[current_platform]["content_types"],
             )
         else:
+            # Set state to CAPTION_INPUT
             self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
+
+            # Check if we need to collect template-specific fields first
+            if await self.check_template_fields(client_id, context):
+                return  # Template fields are being collected
+
+            # If no template fields needed, send the caption prompt
             await self.send_message(client_id, MESSAGES["caption_prompt"])
 
     async def send_content_type_options(
@@ -150,6 +173,60 @@ class ContentTypeHandler(BaseHandler):
             buttons=buttons,
             phone_number=client_id,
         )
+
+    async def check_template_fields(
+        self, client_id: str, context: WorkflowContext
+    ) -> bool:
+        """
+        Check if we need to collect template-specific fields first.
+        Returns True if template fields are being collected.
+        """
+        # Find template if not already set
+        if (
+            not context.template_id
+            and context.selected_platforms
+            and context.selected_content_type
+        ):
+            platform = context.selected_platforms[0]
+            content_type = context.selected_content_type
+
+            # Get the template ID
+            template_id = build_template_id(
+                platform=platform,
+                content_type=content_type,
+                client_id=DEFAULT_TEMPLATE_CLIENT_ID,
+            )
+
+            if template_id:
+                context.template_id = template_id
+                context.template_type = content_type
+                self.state_manager.update_context(client_id, context.model_dump())
+
+        # If we have a template ID, check for required fields
+        if context.template_id:
+            # Extract platform and content_type from template_id
+            parts = context.template_id.split("_")
+            if len(parts) >= 3:
+                platform = parts[0]
+                content_type = parts[2]
+
+                # Use the template service to get the next field to collect
+                next_field = template_service.get_next_field_to_collect(
+                    platform=platform, content_type=content_type, context=context
+                )
+
+                if next_field:
+                    field_name, workflow_state, prompt = next_field
+                    self.logger.info(
+                        f"Requesting field {field_name} for {platform}_{content_type}"
+                    )
+
+                    # Set the state and send the prompt
+                    self.state_manager.set_state(client_id, workflow_state)
+                    await self.send_message(client_id, prompt)
+                    return True
+
+        return False  # No template fields needed
 
     async def send_platform_content_types(
         self, client_id: str, platform: str, content_types: List[str]
