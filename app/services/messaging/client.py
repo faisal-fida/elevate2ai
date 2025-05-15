@@ -241,6 +241,10 @@ class WhatsApp(MessagingClient):
             response = await client.post(self.url, headers=self.headers, json=payload)
             response_data = response.json()
 
+            import pdb
+
+            pdb.set_trace()
+
             if response.status_code != 200:
                 self._handle_api_error(response_data, phone_number, media_type)
                 return {"error": self._format_error_message(response_data)}

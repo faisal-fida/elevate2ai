@@ -1,13 +1,12 @@
 import asyncio
 import random
-from typing import Optional
 from app.services.messaging.client import MessagingClient
 from app.services.messaging.state_manager import StateManager, WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
 from app.constants import MESSAGES, TEMPLATE_CONFIG
 from app.services.common.types import WorkflowContext
 from app.services.messaging.media_utils import cleanup_client_media
-from app.services.content.switchboard import create_image
+from app.services.content.switchboard import edit_media
 from app.services.content.template_utils import (
     validate_template_inputs,
     build_template_payload,
@@ -228,7 +227,7 @@ class ExecutionHandler(BaseHandler):
                         if "event_image" in required_keys:
                             template_data["event_image"] = context.selected_image
                             self.logger.info(
-                                f"Using selected_image as event_image for template compatibility"
+                                "Using selected_image as event_image for template compatibility"
                             )
 
                     # Validate inputs for this template
@@ -253,7 +252,7 @@ class ExecutionHandler(BaseHandler):
                     )
 
                     # Create image with Switchboard
-                    image_response = create_image(
+                    image_response = edit_media(
                         client_id=client_id,
                         template_data=template_payload,
                         platform=platform,
@@ -371,7 +370,7 @@ class ExecutionHandler(BaseHandler):
                     )
 
                     # Create video with Switchboard
-                    video_response = create_image(  # Still uses create_image function even for videos
+                    video_response = edit_media(
                         client_id=client_id,
                         template_data=template_payload,
                         platform=platform,
