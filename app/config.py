@@ -1,6 +1,6 @@
 import urllib.parse
-from typing import List, Literal
-from pydantic import AnyHttpUrl, Field
+from typing import Literal
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -34,11 +34,9 @@ class Settings(BaseSettings):
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
         default=7, env="JWT_REFRESH_TOKEN_EXPIRE_DAYS"
     )
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = Field(
-        default=["http://localhost:3000"], env="BACKEND_CORS_ORIGINS"
-    )
+    BACKEND_CORS_ORIGINS: str = Field(default="*", env="BACKEND_CORS_ORIGINS")
     SECURE_COOKIES: bool = Field(default=False, env="SECURE_COOKIES")
-    TRUSTED_HOSTS: List[str] = Field(default=["*"], env="TRUSTED_HOSTS")
+    TRUSTED_HOSTS: str = Field(default=["*"], env="TRUSTED_HOSTS")
 
     # External APIs
     # Image/Video services
