@@ -136,9 +136,7 @@ class CaptionHandler(BaseHandler):
                     user_inputs["event_image"] = context.event_image
                 elif context.selected_image:
                     # If template needs event_image and we have selected_image, use it
-                    if "event_image" in get_required_keys(
-                        context.template_id
-                    ):
+                    if "event_image" in get_required_keys(context.template_id):
                         user_inputs["event_image"] = context.selected_image
                         context.event_image = context.selected_image
                         self.logger.info(
@@ -805,9 +803,7 @@ class CaptionHandler(BaseHandler):
                                 context.template_data["main_image"] = public_url
 
                             # For templates requiring event_image
-                            if "event_image" in get_required_keys(
-                                context.template_id
-                            ):
+                            if "event_image" in get_required_keys(context.template_id):
                                 context.event_image = public_url
                                 self.logger.info(
                                     "Also setting event_image to the same URL for template compatibility"
@@ -869,9 +865,7 @@ class CaptionHandler(BaseHandler):
                             context.template_data["main_image"] = public_url
 
                         # For templates requiring event_image
-                        if "event_image" in get_required_keys(
-                            context.template_id
-                        ):
+                        if "event_image" in get_required_keys(context.template_id):
                             context.event_image = public_url
                             self.logger.info(
                                 "Also setting event_image to the same URL for template compatibility"
@@ -926,9 +920,7 @@ class CaptionHandler(BaseHandler):
                         context.template_data["main_image"] = message
 
                     # For templates requiring event_image
-                    if "event_image" in get_required_keys(
-                        context.template_id
-                    ):
+                    if "event_image" in get_required_keys(context.template_id):
                         context.event_image = message
                         self.logger.info(
                             "Also setting event_image to the same URL for template compatibility"
