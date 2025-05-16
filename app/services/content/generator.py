@@ -77,7 +77,7 @@ class ContentGenerator:
     async def generate_template_content(
         self, template_id: str, user_inputs: Dict[str, Any]
     ) -> Tuple[str, List[str], Dict[str, Any]]:
-        """Generate content based on a specific template from template_manager."""
+        """Generate content based on a specific template."""
 
         try:
             # Extract platform and content_type from template_id

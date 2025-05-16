@@ -1,16 +1,15 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
 
 
 class UserCreate(BaseModel):
-    whatsapp_number: str = Field(..., example="14155552671")
-    password: str = Field(..., example="strongpassword")
+    whatsapp_number: str
+    password: str
 
 
 class UserLogin(BaseModel):
-    whatsapp_number: str = Field(..., example="14155552671")
-    password: str = Field(..., example="strongpassword")
-
+    whatsapp_number: str
+    password: str
 
 class Token(BaseModel):
     access_token: str

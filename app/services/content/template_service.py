@@ -192,7 +192,7 @@ class TemplateService:
         # Special handling for events templates - if main_image is missing but we're in events content type
         if "main_image" in missing_fields and content_type == "events":
             self.logger.warning(
-                f"Missing main_image for events template, will be handled by execution handler"
+                "Missing main_image for events template, will be handled by execution handler"
             )
             # Remove main_image from missing fields to allow validation to proceed
             missing_fields = [
@@ -235,6 +235,32 @@ class TemplateService:
 
         return True, "", validated_data
 
+    def build_payload(
+        self, template_id: str, template_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Build a payload for the template"""
+        template = self.get_template(template_id)
+        if not template:
+            raise ValueError(f"Template {template_id} not found")
+
+        # Ensure all required keys are present
+        required_keys = template.get("required_keys", [])
+        for key in required_keys:
+            if key not in template_data:
+                raise ValueError(f"Missing required key: {key}")
+
+        # Build payload based on template type
+        template_type = template.get("type", "")
+        payload = {
+            "template_id": template_id,
+            "template_type": template_type,
+        }
+
+        # Add all template data
+        for key, value in template_data.items():
+            payload[key] = value
+
+        return payload
 
 # Create a singleton instance
 template_service = TemplateService()

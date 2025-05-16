@@ -4,12 +4,12 @@ from app.services.messaging.state_manager import StateManager, WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
 from app.services.content.generator import ContentGenerator
 from app.constants import MESSAGES
-from app.services.content.template_manager import template_manager
 from app.services.content.template_service import template_service
 from app.services.content.template_config import (
     FieldSource,
     get_field_config,
     get_template_config,
+    get_required_keys,
 )
 from app.services.common.types import WorkflowContext, MediaItem
 from app.services.messaging.media_utils import save_whatsapp_image, cleanup_client_media
@@ -83,7 +83,7 @@ class CaptionHandler(BaseHandler):
 
                     # If we already have a selected_image and template needs event_image, set it
                     if (
-                        "event_image" in template_manager.get_required_keys(template_id)
+                        "event_image" in get_required_keys(template_id)
                         and context.selected_image
                         and not context.event_image
                     ):
@@ -136,7 +136,7 @@ class CaptionHandler(BaseHandler):
                     user_inputs["event_image"] = context.event_image
                 elif context.selected_image:
                     # If template needs event_image and we have selected_image, use it
-                    if "event_image" in template_manager.get_required_keys(
+                    if "event_image" in get_required_keys(
                         context.template_id
                     ):
                         user_inputs["event_image"] = context.selected_image
@@ -203,7 +203,7 @@ class CaptionHandler(BaseHandler):
         raw_context = self.state_manager.get_context(client_id)
         if "image_urls" not in raw_context or not raw_context["image_urls"]:
             self.logger.warning(
-                f"image_urls missing from context before ask_for_image_upload, re-saving context"
+                "image_urls missing from context before ask_for_image_upload, re-saving context"
             )
             self.state_manager.update_context(client_id, context.model_dump())
 
@@ -793,7 +793,6 @@ class CaptionHandler(BaseHandler):
                     if context.template_id:
                         parts = context.template_id.split("_")
                         if len(parts) >= 3:
-                            platform = parts[0]
                             content_type = parts[2]
 
                             # For events templates, set main_image
@@ -806,7 +805,7 @@ class CaptionHandler(BaseHandler):
                                 context.template_data["main_image"] = public_url
 
                             # For templates requiring event_image
-                            if "event_image" in template_manager.get_required_keys(
+                            if "event_image" in get_required_keys(
                                 context.template_id
                             ):
                                 context.event_image = public_url
@@ -870,7 +869,7 @@ class CaptionHandler(BaseHandler):
                             context.template_data["main_image"] = public_url
 
                         # For templates requiring event_image
-                        if "event_image" in template_manager.get_required_keys(
+                        if "event_image" in get_required_keys(
                             context.template_id
                         ):
                             context.event_image = public_url
@@ -927,7 +926,7 @@ class CaptionHandler(BaseHandler):
                         context.template_data["main_image"] = message
 
                     # For templates requiring event_image
-                    if "event_image" in template_manager.get_required_keys(
+                    if "event_image" in get_required_keys(
                         context.template_id
                     ):
                         context.event_image = message

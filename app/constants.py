@@ -1,6 +1,5 @@
 # WhatsApp message templates
 MESSAGES = {
-    # Original messages
     "welcome": "👋 Welcome! Please share your promotional text and I'll help you create engaging content.",
     "start_prompt": "👋 Please start by saying 'Hi'!",
     "generating": "🎨 Generating engaging content for your promotion...",
@@ -46,17 +45,6 @@ SOCIAL_MEDIA_PLATFORMS = {
     },
 }
 
-
-# Helper function to get platforms that support a specific content type
-def get_platforms_for_content_type(content_type: str) -> list:
-    """Return a list of platforms that support the given content type"""
-    supported_platforms = []
-    for platform, details in SOCIAL_MEDIA_PLATFORMS.items():
-        if content_type in details["content_types"]:
-            supported_platforms.append(platform)
-    return supported_platforms
-
-
 # Example OpenAI prompts (expand as needed)
 OPENAI_PROMPTS = {
     "caption_system": "You are a marketing expert. Create engaging social media captions.",
@@ -67,65 +55,3 @@ OPENAI_PROMPTS = {
 
 
 DEFAULT_TEMPLATE_CLIENT_ID = "923408957390"
-
-# Legacy template data - kept for backward compatibility
-# The new centralized configuration is in app/services/content/template_config.py
-TEMPLATE_DATA = {
-    # TikTok Templates
-    f"tiktok_{DEFAULT_TEMPLATE_CLIENT_ID}_promo": {
-        "type": "promo",
-        "required_keys": [
-            "destination_name",
-            "video_background",
-            "caption_text",
-            "price_text",
-        ],
-    },
-    f"tiktok_{DEFAULT_TEMPLATE_CLIENT_ID}_generic": {
-        "type": "generic",
-        "required_keys": ["caption_text", "video_background"],
-    },
-    # Instagram Templates
-    f"instagram_{DEFAULT_TEMPLATE_CLIENT_ID}_reels": {
-        "type": "reels",
-        "required_keys": ["caption_text", "video_background"],
-    },
-    f"instagram_{DEFAULT_TEMPLATE_CLIENT_ID}_tips": {
-        "type": "tips",
-        "required_keys": ["main_image", "caption_text"],
-    },
-    f"instagram_{DEFAULT_TEMPLATE_CLIENT_ID}_promo": {
-        "type": "promo",
-        "required_keys": [
-            "destination_name",
-            "main_image",
-            "caption_text",
-            "price_text",
-        ],
-    },
-    f"instagram_{DEFAULT_TEMPLATE_CLIENT_ID}_destination": {
-        "type": "destination",
-        "required_keys": ["destination_name", "main_image"],
-    },
-    f"instagram_{DEFAULT_TEMPLATE_CLIENT_ID}_events": {
-        "type": "events",
-        "required_keys": ["event_name", "main_image"],
-    },
-    f"instagram_{DEFAULT_TEMPLATE_CLIENT_ID}_seasonal": {
-        "type": "seasonal",
-        "required_keys": ["caption_text", "main_image"],
-    },
-    # LinkedIn Templates
-    f"linkedin_{DEFAULT_TEMPLATE_CLIENT_ID}_tips": {
-        "type": "tips",
-        "required_keys": ["main_image", "caption_text"],
-    },
-    f"linkedin_{DEFAULT_TEMPLATE_CLIENT_ID}_seasonal": {
-        "type": "seasonal",
-        "required_keys": ["caption_text", "main_image"],
-    },
-    f"linkedin_{DEFAULT_TEMPLATE_CLIENT_ID}_events": {
-        "type": "events",
-        "required_keys": ["event_name", "main_image"],
-    },
-}

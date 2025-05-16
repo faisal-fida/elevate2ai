@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Response, status
+from fastapi import APIRouter, FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.params import Query
@@ -12,7 +12,8 @@ from app.config import settings
 from app.db import Base, engine, get_db
 from app.middleware import CustomJWTAuthMiddleware
 from app.api.webhook import verify_webhook, handle_message
-from app.api.auth.router import auth_router
+from app.api.auth.whatsapp import router as whatsapp_auth_router
+from app.api.auth.session import router as session_router
 from app.services.auth.whatsapp import AuthService
 from app.services.common.logging import setup_logger
 
@@ -92,6 +93,11 @@ app.add_middleware(
 
 # Mount static media directory
 app.mount("/media", StaticFiles(directory="media"), name="media")
+
+# Setup auth router
+auth_router = APIRouter(prefix="/auth", tags=["Authentication"])
+auth_router.include_router(whatsapp_auth_router)
+auth_router.include_router(session_router)
 
 # Include routers
 app.include_router(auth_router, prefix="/api")

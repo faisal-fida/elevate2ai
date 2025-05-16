@@ -234,7 +234,7 @@ TEMPLATE_CONFIGS = {
 
 def get_template_config(platform: str, content_type: str) -> Optional[TemplateConfig]:
     """Get template configuration for a platform and content type"""
-    for template_id, config in TEMPLATE_CONFIGS.items():
+    for _, config in TEMPLATE_CONFIGS.items():
         if platform in config.platforms and config.type == content_type:
             return config
     return None
@@ -246,8 +246,6 @@ def get_required_keys(platform: str, content_type: str) -> List[str]:
     if not config:
         return []
 
-    # By default, all fields in the template are considered required
-    # unless explicitly marked as not required
     return [
         key
         for key, field_config in config.fields.items()

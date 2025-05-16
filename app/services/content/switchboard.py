@@ -1,7 +1,7 @@
 import httpx
 from typing import Dict, Any
 from app.constants import SOCIAL_MEDIA_PLATFORMS
-from app.services.content.template_manager import template_manager
+from app.services.content.template_service import template_service
 from app.config import settings
 from app.services.common.logging import setup_logger
 
@@ -32,7 +32,7 @@ class SwitchboardService:
 
         # Get the template configuration
         template_id = f"{platform.lower()}_{client_id}_{post_type.lower()}"
-        template_config = template_manager.get_template(template_id)
+        template_config = template_service.get_template(template_id)
         if not template_config:
             raise ValueError(f"Template {template_id} not found in configuration")
 

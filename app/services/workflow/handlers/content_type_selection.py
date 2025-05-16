@@ -4,7 +4,6 @@ from app.services.workflow.handlers.base import BaseHandler
 from app.constants import (
     MESSAGES,
     SOCIAL_MEDIA_PLATFORMS,
-    get_platforms_for_content_type,
 )
 from app.services.common.types import WorkflowContext
 
@@ -20,7 +19,7 @@ class ContentTypeSelectionHandler(BaseHandler):
 
         if message in all_content_types:
             context.selected_content_type = message
-            supported_platforms = get_platforms_for_content_type(message)
+            supported_platforms = self._get_platforms_for_content_type(message)
             context.supported_platforms = supported_platforms
             self.state_manager.update_context(client_id, context.model_dump())
             self.state_manager.set_state(
@@ -32,6 +31,14 @@ class ContentTypeSelectionHandler(BaseHandler):
         else:
             await self.send_message(client_id, "Please select a valid content type.")
             await self.send_content_type_options(client_id)
+
+    def _get_platforms_for_content_type(self, content_type: str) -> list:
+        """Return a list of platforms that support the given content type"""
+        supported_platforms = []
+        for platform, details in SOCIAL_MEDIA_PLATFORMS.items():
+            if content_type in details["content_types"]:
+                supported_platforms.append(platform)
+        return supported_platforms
 
     async def send_content_type_options(self, client_id: str) -> None:
         """Send content type options to the client"""

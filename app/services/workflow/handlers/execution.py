@@ -3,8 +3,7 @@ import random
 from app.services.messaging.client import MessagingClient
 from app.services.messaging.state_manager import StateManager, WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
-from app.constants import MESSAGES, DEFAULT_TEMPLATE_CLIENT_ID
-from app.services.content.template_manager import template_manager
+from app.constants import MESSAGES
 from app.services.content.template_service import template_service
 from app.services.common.types import WorkflowContext
 from app.services.messaging.media_utils import cleanup_client_media
@@ -237,12 +236,12 @@ class ExecutionHandler(BaseHandler):
                         and context.selected_image
                     ):
                         self.logger.info(
-                            f"Adding missing main_image to template data for events template"
+                            "Adding missing main_image to template data for events template"
                         )
                         validated_data["main_image"] = context.selected_image
 
                     # Build final template payload
-                    template_payload = template_manager.build_payload(
+                    template_payload = template_service.build_payload(
                         template_id, validated_data
                     )
 
@@ -350,7 +349,7 @@ class ExecutionHandler(BaseHandler):
                         continue
 
                     # Build final template payload
-                    template_payload = template_manager.build_payload(
+                    template_payload = template_service.build_payload(
                         template_id, validated_data
                     )
 
