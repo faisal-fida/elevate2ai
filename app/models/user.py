@@ -1,10 +1,8 @@
+import bcrypt
 from sqlalchemy import Column, String, Boolean, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db import Base
-from passlib.context import CryptContext
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class User(Base):
@@ -31,10 +29,15 @@ class User(Base):
     )
 
     def verify_password(self, plain_password: str) -> bool:
-        return pwd_context.verify(plain_password, self.hashed_password)
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"), self.hashed_password.encode("utf-8")
+        )
 
     def set_password(self, plain_password: str):
-        self.hashed_password = pwd_context.hash(plain_password)
+        salt = bcrypt.gensalt()
+        self.hashed_password = bcrypt.hashpw(
+            plain_password.encode("utf-8"), salt
+        ).decode("utf-8")
 
     def __repr__(self):
         return f"<User whatsapp_number={self.whatsapp_number}>"
