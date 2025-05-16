@@ -262,5 +262,6 @@ class TemplateService:
 
         return payload
 
+
 # Create a singleton instance
 template_service = TemplateService()
