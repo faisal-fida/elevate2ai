@@ -19,6 +19,10 @@ class TemplateService:
         """Initialize the template service"""
         self.logger = setup_logger(__name__)
 
+    def get_template(self, template_id: str) -> Optional[Dict[str, Any]]:
+        """Get the template configuration"""
+        return get_template_config(template_id)
+
     def get_template_id(
         self,
         platform: str,
@@ -261,6 +265,7 @@ class TemplateService:
             payload[key] = value
 
         return payload
+
 
 # Create a singleton instance
 template_service = TemplateService()

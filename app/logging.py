@@ -1,12 +1,4 @@
-"""
-Logging configuration for the application.
-
-This module provides centralized logging setup with custom formatters,
-error handlers, and utility functions.
-"""
-
 import logging
-import os
 import sys
 import traceback
 from datetime import datetime
@@ -18,9 +10,9 @@ LOGS_DIR = Path("logs")
 LOGS_DIR.mkdir(exist_ok=True)
 
 # Configure log formats
-LOG_FORMAT = "%(levelname)s | %(name)s | (%(filename)s:%(lineno)d) | %(message)s"
+LOG_FORMAT = "%(levelname)s:     %(message)s (%(filename)s:%(lineno)d)"
 DETAILED_FORMAT = (
-    "%(levelname)s | %(name)s | (%(filename)s:%(lineno)d) | %(funcName)s | %(message)s"
+    "%(levelname)s:     %(filename)s:%(lineno)d | %(funcName)s | %(message)s"
 )
 
 # Terminal color codes for different log levels
