@@ -15,7 +15,7 @@ from app.api.webhook import verify_webhook, handle_message
 from app.api.auth.whatsapp import router as whatsapp_auth_router
 from app.api.auth.session import router as session_router
 from app.services.auth.whatsapp import AuthService
-from app.services.common.logging import setup_logger
+from app.logging import setup_logger
 
 logger = setup_logger(__name__)
 

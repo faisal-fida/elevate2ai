@@ -5,7 +5,7 @@ from app.constants import (
     MESSAGES,
     SOCIAL_MEDIA_PLATFORMS,
 )
-from app.services.common.types import WorkflowContext
+from app.services.types import WorkflowContext
 
 
 class ContentTypeSelectionHandler(BaseHandler):

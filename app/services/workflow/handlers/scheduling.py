@@ -2,7 +2,7 @@ import asyncio
 from app.services.messaging.state_manager import WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
 from app.constants import MESSAGES
-from app.services.common.types import WorkflowContext
+from app.services.types import WorkflowContext
 
 
 class SchedulingHandler(BaseHandler):

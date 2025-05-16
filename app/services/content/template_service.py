@@ -1,7 +1,7 @@
 from typing import Dict, List, Any, Optional, Tuple
-from app.services.common.types import WorkflowContext
+from app.services.types import WorkflowContext
 from app.services.messaging.state_manager import WorkflowState
-from app.services.common.logging import setup_logger
+from app.logging import setup_logger
 from app.constants import DEFAULT_TEMPLATE_CLIENT_ID
 from app.services.content.template_config import (
     FieldSource,

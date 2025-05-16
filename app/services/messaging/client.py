@@ -9,8 +9,8 @@ from __future__ import annotations
 import httpx
 import re
 from typing import Dict, Any, Optional, Union, List
-from app.services.common.logging import setup_logger
-from app.services.common.types import MediaItem, ButtonItem, SectionItem
+from app.logging import setup_logger
+from app.services.types import MediaItem, ButtonItem, SectionItem
 from app.config import MEDIA_BASE_URL  # noqa: F401
 
 

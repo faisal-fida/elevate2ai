@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.services.auth.session import SessionService
-from app.services.common.logging import setup_logger
+from app.logging import setup_logger
 
 from app.api.auth.whatsapp import (
     get_current_active_user,

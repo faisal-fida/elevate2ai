@@ -2,8 +2,8 @@ from enum import Enum, auto
 from typing import Dict, Any
 import json
 
-from app.services.common.logging import setup_logger
-from app.services.common.types import WorkflowStateType
+from app.logging import setup_logger
+from app.services.types import WorkflowStateType
 
 
 class WorkflowState(Enum):

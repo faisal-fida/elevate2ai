@@ -3,7 +3,7 @@ from typing import Dict, Any
 from app.constants import SOCIAL_MEDIA_PLATFORMS
 from app.services.content.template_service import template_service
 from app.config import settings
-from app.services.common.logging import setup_logger
+from app.logging import setup_logger
 
 
 class SwitchboardService:

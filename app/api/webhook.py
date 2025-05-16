@@ -4,7 +4,7 @@ from typing import Dict, Any
 from fastapi import Response
 from app.config import settings
 from app.services.workflow.manager import WorkflowManager
-from app.services.common.logging import setup_logger, log_exception
+from app.logging import setup_logger, log_exception
 
 logger = setup_logger(__name__)
 workflow_manager = WorkflowManager()

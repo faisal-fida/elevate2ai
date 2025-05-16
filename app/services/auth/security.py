@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from jose import jwt, JWTError
 from app.config import settings
-from app.services.common.logging import setup_logger
+from app.logging import setup_logger
 import uuid
 from fastapi import HTTPException, status
 from jose.exceptions import ExpiredSignatureError

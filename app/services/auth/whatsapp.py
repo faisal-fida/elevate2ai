@@ -4,7 +4,7 @@ from sqlalchemy.future import select
 from sqlalchemy import update
 from app.models.user import User
 from app.services.auth.session import SessionService
-from app.services.common.logging import setup_logger
+from app.logging import setup_logger
 from app.schemas import UserCreate, UserResponse, AdminUserUpdateAccess
 from app.config import settings
 

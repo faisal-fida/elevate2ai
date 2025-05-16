@@ -1,5 +1,5 @@
 import asyncio
-from app.services.common.logging import setup_logger, log_exception
+from app.logging import setup_logger, log_exception
 from app.services.messaging.client import WhatsApp
 from app.config import settings
 from app.services.messaging.state_manager import StateManager, WorkflowState

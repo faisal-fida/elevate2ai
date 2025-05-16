@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 import asyncio
-from app.services.common.logging import setup_logger
+from app.logging import setup_logger
 from app.services.messaging.client import MessagingClient
 from app.services.messaging.state_manager import StateManager
 

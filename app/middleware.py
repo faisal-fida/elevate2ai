@@ -1,7 +1,7 @@
 from fastapi import Request, status
 from fastapi.security import HTTPBearer
 from app.services.auth.security import verify_token
-from app.services.common.logging import setup_logger
+from app.logging import setup_logger
 from typing import Optional, List
 import re
 

@@ -5,7 +5,7 @@ from app.services.messaging.state_manager import StateManager, WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
 from app.constants import MESSAGES
 from app.services.content.template_service import template_service
-from app.services.common.types import WorkflowContext
+from app.services.types import WorkflowContext
 from app.services.messaging.media_utils import cleanup_client_media
 from app.services.content.switchboard import switchboard_service
 

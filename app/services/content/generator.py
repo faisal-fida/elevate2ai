@@ -1,5 +1,5 @@
 from typing import Tuple, List, Dict, Any, Optional
-from app.services.common.logging import setup_logger
+from app.logging import setup_logger
 from .openai_service import AsyncOpenAIService
 from .image_service import MediaService
 from app.constants import OPENAI_PROMPTS

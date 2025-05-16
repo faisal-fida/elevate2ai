@@ -6,7 +6,7 @@ from sqlalchemy import update
 from app.models.session import Session
 from app.models.user import User
 from app.services.auth.security import create_access_token, create_refresh_token
-from app.services.common.logging import setup_logger
+from app.logging import setup_logger
 from app.config import settings
 import uuid
 

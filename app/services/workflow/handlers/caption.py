@@ -11,7 +11,7 @@ from app.services.content.template_config import (
     get_template_config,
     get_required_keys,
 )
-from app.services.common.types import WorkflowContext, MediaItem
+from app.services.types import WorkflowContext, MediaItem
 from app.services.messaging.media_utils import save_whatsapp_image, cleanup_client_media
 
 

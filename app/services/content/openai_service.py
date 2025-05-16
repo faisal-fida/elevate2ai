@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional, Union, Tuple
 from openai import AsyncOpenAI
 from app.config import settings
-from app.services.common.logging import setup_logger
+from app.logging import setup_logger
 
 
 class AsyncOpenAIService:

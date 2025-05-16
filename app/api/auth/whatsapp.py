@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.services.auth.whatsapp import AuthService  # Renamed service
 from app.services.auth.security import verify_token
-from app.services.common.logging import setup_logger
+from app.logging import setup_logger
 from typing import Dict, Any, List
 from app.schemas import UserCreate, UserResponse, AdminUserUpdateAccess, UserLogin
 from app.models.user import User

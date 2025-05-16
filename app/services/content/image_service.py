@@ -1,6 +1,6 @@
 from typing import List, Literal
 import httpx
-from app.services.common.logging import setup_logger
+from app.logging import setup_logger
 from urllib.parse import quote
 from app.config import settings
 

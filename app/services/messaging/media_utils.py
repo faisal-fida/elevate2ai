@@ -4,7 +4,7 @@ from pathlib import Path
 import uuid
 import os
 from app.config import settings
-from app.services.common.logging import setup_logger
+from app.logging import setup_logger
 
 logger = setup_logger(__name__)
 

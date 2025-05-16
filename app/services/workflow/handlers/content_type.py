@@ -2,7 +2,7 @@ from typing import List, Optional
 from app.services.messaging.state_manager import WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
 from app.constants import MESSAGES, SOCIAL_MEDIA_PLATFORMS, DEFAULT_TEMPLATE_CLIENT_ID
-from app.services.common.types import WorkflowContext
+from app.services.types import WorkflowContext
 from app.services.content.template_service import template_service
 from app.services.content.template_config import build_template_id
 
