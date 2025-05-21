@@ -19,12 +19,24 @@ class WorkflowState(Enum):
     SCHEDULE_SELECTION = auto()
     CONFIRMATION = auto()
     POST_EXECUTION = auto()
+
+    # Template-specific input states
     WAITING_FOR_DESTINATION = auto()
     WAITING_FOR_EVENT_NAME = auto()
     WAITING_FOR_PRICE = auto()
     WAITING_FOR_HEADLINE = auto()
+    WAITING_FOR_CAPTION = auto()
+    WAITING_FOR_TIP_DETAILS = auto()
+    WAITING_FOR_SEASONAL_DETAILS = auto()
+
+    # Media handling states
     IMAGE_INCLUSION_DECISION = auto()
-    IMAGE_SELECTION = auto()  # New state for selecting from multiple images
+    IMAGE_SELECTION = auto()
+    WAITING_FOR_VIDEO_UPLOAD = auto()
+
+    # Validation states
+    VALIDATION_ERROR = auto()
+    FIELD_COLLECTION = auto()
 
 
 class StateManager:
@@ -68,6 +80,10 @@ class StateManager:
         self.logger.info(
             f"State transition for {client_id}: {prev_state} -> {state.name}"
         )
+
+        # self.logger.info(
+        #     f"State Context: {{{', '.join([f'{k}: {v}' for k, v in self.get_context(client_id).items() if v is not None and v != '' and v != [] and v != {}])}"
+        # )
 
     def get_context(self, client_id: str) -> Dict[str, Any]:
         """

@@ -91,10 +91,13 @@ class SwitchboardService:
 
             self.logger.info(f"Editing image with template data: {template_data}")
             payload = self.build_payload(client_id, template_data, platform, post_type)
-            self.logger.info(f"Successfully built payload: {payload}")
             response = self.client.post(self.base_url, json=payload)
             response.raise_for_status()
-            return response.json()
+            response_json = response.json()
+            self.logger.info(
+                f"Successfully edited image | Payload: {payload} | Response: {response_json}"
+            )
+            return response_json
 
         except Exception as e:
             self.logger.error(

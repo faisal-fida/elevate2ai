@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from app.services.messaging.client import MessagingClient
 from app.services.messaging.state_manager import StateManager, WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
@@ -26,6 +26,9 @@ class CaptionHandler(BaseHandler):
     ):
         super().__init__(client, state_manager)
         self.content_generator = content_generator
+        from app.services.content.image_service import MediaService
+
+        self.media_service = MediaService()
 
     async def handle(self, client_id: str, message: str) -> None:
         """Handle caption input"""
@@ -38,6 +41,12 @@ class CaptionHandler(BaseHandler):
             return
         elif current_state == WorkflowState.IMAGE_SELECTION:
             await self.handle_image_selection(client_id, message)
+            return
+        elif current_state == WorkflowState.VIDEO_SELECTION:
+            await self.handle_video_selection(client_id, message)
+            return
+        elif current_state == WorkflowState.WAITING_FOR_CAPTION:
+            await self.handle_waiting_for_caption(client_id, message)
             return
 
         # Handle template-specific input states
@@ -206,7 +215,7 @@ class CaptionHandler(BaseHandler):
             self.state_manager.update_context(client_id, context.model_dump())
 
         # Ask for image upload
-        await self.ask_for_image_upload(client_id)
+        await self.ask_for_media_upload(client_id)
 
     async def request_template_fields(self, client_id: str) -> bool:
         """
@@ -238,6 +247,15 @@ class CaptionHandler(BaseHandler):
             platform = parts[0]
             content_type = parts[2]
 
+            # Skip caption_text field if we already have a caption
+            if context.caption:
+                # Store caption in template_data to prevent re-requesting
+                if not context.template_data:
+                    context.template_data = {}
+                context.template_data["caption_text"] = context.caption
+                self.state_manager.update_context(client_id, context.model_dump())
+                return False
+
             # Use the template service to get the next field to collect
             next_field = template_service.get_next_field_to_collect(
                 platform=platform, content_type=content_type, context=context
@@ -245,6 +263,11 @@ class CaptionHandler(BaseHandler):
 
             if next_field:
                 field_name, workflow_state, prompt = next_field
+
+                # Skip if we already have this field in template_data
+                if context.template_data and field_name in context.template_data:
+                    return False
+
                 self.logger.info(
                     f"Requesting field {field_name} for {platform}_{content_type}"
                 )
@@ -434,13 +457,208 @@ class CaptionHandler(BaseHandler):
             )
 
             # Check if we need to ask for image upload or use external service
-            await self.ask_for_image_upload(client_id)
+            await self.ask_for_media_upload(client_id)
 
         except Exception as e:
             self.logger.error(f"Error generating content: {e}")
             await self.send_message(client_id, f"Error generating content: {e}")
             # Reset to caption input state
             self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
+
+    async def ask_for_media_upload(self, client_id: str) -> None:
+        """Ask the user to upload media based on template configuration"""
+        context = WorkflowContext(**self.state_manager.get_context(client_id))
+
+        if context.template_id:
+            # Extract platform and content_type from template_id
+            parts = context.template_id.split("_")
+            if len(parts) >= 3:
+                platform = parts[0]
+                content_type = parts[2]
+                template_config = get_template_config(platform, content_type)
+
+                if template_config and template_config.is_video:
+                    # For video content from external service
+                    if "video_background" in template_config.fields:
+                        field_config = template_config.fields["video_background"]
+                        if field_config.source == FieldSource.EXTERNAL_SERVICE:
+                            await self.send_message(
+                                client_id,
+                                field_config.prompt
+                                or "We'll find a suitable video for your post.",
+                            )
+                            # Search for videos using the content type as query
+                            search_query = content_type
+                            if context.caption:
+                                search_query = context.caption
+
+                            try:
+                                # Use the media service to search for videos
+                                video_urls = await self.media_service.search_videos(
+                                    search_query, limit=4
+                                )
+
+                                if video_urls:
+                                    context.video_urls = video_urls
+                                    self.state_manager.update_context(
+                                        client_id, context.model_dump()
+                                    )
+
+                                    # Send videos to user for selection
+                                    for i, video_url in enumerate(video_urls, 1):
+                                        await self.client.send_media(
+                                            media_items=[
+                                                {"type": "video", "url": video_url}
+                                            ],
+                                            phone_number=client_id,
+                                        )
+                                        await self.send_message(
+                                            client_id, f"Video option {i}"
+                                        )
+
+                                    # Update state and ask for selection
+                                    self.state_manager.set_state(
+                                        client_id, WorkflowState.VIDEO_SELECTION
+                                    )
+                                    await self.send_message(
+                                        client_id,
+                                        "Please reply with the number of the video you want to use (1-4).",
+                                    )
+                                    return
+                                else:
+                                    self.logger.warning(
+                                        f"No videos found for query: {search_query}"
+                                    )
+                                    await self.send_message(
+                                        client_id,
+                                        "We couldn't find suitable videos. Please upload your own video.",
+                                    )
+                                    self.state_manager.set_state(
+                                        client_id,
+                                        WorkflowState.WAITING_FOR_VIDEO_UPLOAD,
+                                    )
+                                    return
+                            except Exception as e:
+                                self.logger.error(f"Error searching for videos: {e}")
+                                await self.send_message(
+                                    client_id,
+                                    "We encountered an error finding videos. Please upload your own video.",
+                                )
+                                self.state_manager.set_state(
+                                    client_id, WorkflowState.WAITING_FOR_VIDEO_UPLOAD
+                                )
+                                return
+
+        # For non-video content or if no specific template config found
+        if context.is_video_content:
+            await self.send_message(
+                client_id,
+                "Please upload a video for your post. The video should be in MP4 format and less than 60 seconds.",
+            )
+            self.state_manager.set_state(
+                client_id, WorkflowState.WAITING_FOR_VIDEO_UPLOAD
+            )
+        else:
+            # For image content, proceed with existing image upload flow
+            await self.ask_for_image_upload(client_id)
+
+    async def handle_media_upload(self, client_id: str, message: str) -> None:
+        """Handle media upload from WhatsApp"""
+        context = WorkflowContext(**self.state_manager.get_context(client_id))
+
+        try:
+            # Extract media ID and type from message
+            media_id = message.split(":")[2]
+            media_type = message.split(":")[1]
+
+            if context.is_video_content and media_type != "video":
+                await self.send_message(
+                    client_id,
+                    "This post requires a video. Please upload a video file in MP4 format.",
+                )
+                return
+
+            elif not context.is_video_content and media_type != "image":
+                await self.send_message(
+                    client_id,
+                    "This post requires an image. Please upload an image file.",
+                )
+                return
+
+            # Process the media upload
+            public_url = await self._process_media_upload(
+                client_id, media_id, media_type
+            )
+
+            if public_url:
+                if context.is_video_content:
+                    context.selected_video = public_url
+                    context.video_background = public_url
+                    if context.template_data is None:
+                        context.template_data = {}
+                    context.template_data["video_background"] = public_url
+                else:
+                    context.selected_image = public_url
+                    if context.template_data is None:
+                        context.template_data = {}
+                    context.template_data["main_image"] = public_url
+
+                self.state_manager.update_context(client_id, context.model_dump())
+                await self.send_message(client_id, "Media uploaded successfully!")
+
+                # Move to scheduling
+                self.state_manager.set_state(
+                    client_id, WorkflowState.SCHEDULE_SELECTION
+                )
+                await self.send_scheduling_options(client_id)
+
+        except Exception as e:
+            self.logger.error(f"Error processing media upload: {e}")
+            await self.send_message(
+                client_id,
+                "Sorry, there was an error processing your media upload. Please try again.",
+            )
+
+    async def _process_media_upload(
+        self, client_id: str, media_id: str, media_type: str
+    ) -> Optional[str]:
+        """Process media upload and return public URL"""
+        try:
+            if media_type == "video":
+                # Get template configuration
+                context = WorkflowContext(**self.state_manager.get_context(client_id))
+                if context.template_id:
+                    parts = context.template_id.split("_")
+                    if len(parts) >= 3:
+                        platform = parts[0]
+                        content_type = parts[2]
+                        template_config = get_template_config(platform, content_type)
+
+                        if template_config and template_config.is_video:
+                            # For external service videos, we should already have the video URL
+                            if (
+                                "video_background" in template_config.fields
+                                and template_config.fields["video_background"].source
+                                == FieldSource.EXTERNAL_SERVICE
+                            ):
+                                return (
+                                    context.video_background or context.selected_video
+                                )
+
+                # For user uploaded videos
+                return await self._save_whatsapp_video(media_id)
+            else:
+                # Use existing image upload handling
+                return await save_whatsapp_image(media_id, client_id)
+        except Exception as e:
+            self.logger.error(f"Error processing media upload: {e}")
+            return None
+
+    async def _save_whatsapp_video(self, media_id: str) -> Optional[str]:
+        """Save video from WhatsApp"""
+        # TODO: Implement video saving logic
+        # For now, return a placeholder
+        return f"/media/videos/{media_id}.mp4"
 
     async def ask_for_image_upload(self, client_id: str) -> None:
         """Ask the user to upload an image or search for one based on template configuration"""
@@ -759,196 +977,148 @@ class CaptionHandler(BaseHandler):
             )
             return
 
-    async def handle_media_upload(self, client_id: str, message: str) -> None:
-        """Handle image upload from WhatsApp"""
+    async def handle_video_selection(self, client_id: str, message: str) -> None:
+        """Handle video selection from the options presented to the user"""
         context = WorkflowContext(**self.state_manager.get_context(client_id))
 
-        # Check if this is a structured media message
-        if message.startswith("MEDIA_MESSAGE:"):
-            parts = message.split(":")
-            if len(parts) >= 3:
-                media_type = parts[1]
-                media_id = parts[2]
-
-                self.logger.info(f"Processing {media_type} upload with ID: {media_id}")
-
-                # Check if we already have a URL from the workflow manager
-                # First check in the WorkflowContext object
-                public_url = None
-
-                # Then check in the raw context dictionary
-                context_dict = self.state_manager.get_context(client_id)
-                if "media_url" in context_dict:
-                    public_url = context_dict["media_url"]
-                    self.logger.info(
-                        f"Using media URL from context: {public_url[:50]}..."
-                    )
-
-                # If not, try to download it now
-                if not public_url:
-                    public_url = await save_whatsapp_image(media_id, client_id)
-
-                if public_url:
-                    # Store the public URL in the context
-                    context.selected_image = public_url
-
-                    # Also set event_image if needed by template
-                    if context.template_id:
-                        parts = context.template_id.split("_")
-                        if len(parts) >= 3:
-                            content_type = parts[2]
-
-                            # For events templates, set main_image
-                            if content_type == "events":
-                                self.logger.info(
-                                    f"Setting main_image for events template to {public_url[:50]}..."
-                                )
-                                if not context.template_data:
-                                    context.template_data = {}
-                                context.template_data["main_image"] = public_url
-
-                            # For templates requiring event_image
-                            if "event_image" in get_required_keys(
-                                context.template_id, content_type
-                            ):
-                                context.event_image = public_url
-                                self.logger.info(
-                                    "Also setting event_image to the same URL for template compatibility"
-                                )
-
-                                # Update template data if it exists
-                                if context.template_data:
-                                    context.template_data["event_image"] = public_url
-
-                    self.state_manager.update_context(client_id, context.model_dump())
-                    await self.send_message(client_id, "Image uploaded successfully!")
-
-                    # Move to scheduling
-                    self.state_manager.set_state(
-                        client_id, WorkflowState.SCHEDULE_SELECTION
-                    )
-                    await self.send_scheduling_options(client_id)
-                else:
-                    # Failed to download media
-                    await self.send_message(
-                        client_id,
-                        f"I couldn't process your {media_type}. Please upload it again.",
-                    )
-            else:
-                # Invalid format
-                await self.send_message(
-                    client_id,
-                    "Invalid media message format. Please upload your image again.",
-                )
-        # For backward compatibility, handle the old format
-        elif message.startswith("Received image with ID:") or message.startswith(
-            "Received media with ID:"
-        ):
-            # Extract media ID from the message
-            media_id = message.split("ID:")[-1].strip()
-            self.logger.info(
-                f"Processing image upload with ID: {media_id} (legacy format)"
-            )
-
-            # Download and get public URL in one step
-            public_url = await save_whatsapp_image(media_id, client_id)
-
-            if public_url:
-                context.selected_image = public_url
-
-                # Also set event_image if needed by template
-                if context.template_id:
-                    parts = context.template_id.split("_")
-                    if len(parts) >= 3:
-                        content_type = parts[2]
-
-                        # For events templates, set main_image
-                        if content_type == "events":
-                            self.logger.info(
-                                f"Setting main_image for events template to {public_url[:50]}..."
-                            )
-                            if not context.template_data:
-                                context.template_data = {}
-                            context.template_data["main_image"] = public_url
-
-                        # For templates requiring event_image
-                        if "event_image" in get_required_keys(context.template_id):
-                            context.event_image = public_url
-                            self.logger.info(
-                                "Also setting event_image to the same URL for template compatibility"
-                            )
-
-                            # Update template data if it exists
-                            if context.template_data:
-                                context.template_data["event_image"] = public_url
-
-                self.state_manager.update_context(client_id, context.model_dump())
-                await self.send_message(client_id, "Image uploaded successfully!")
-
-                # Move to scheduling
-                self.state_manager.set_state(
-                    client_id, WorkflowState.SCHEDULE_SELECTION
-                )
-                await self.send_scheduling_options(client_id)
-            else:
-                # Failed to download media
-                await self.send_message(
-                    client_id, "I couldn't process your image. Please upload it again."
-                )
-        elif message.startswith("http") and ("://" in message):
-            # For direct URLs, just store the URL (we don't support this anymore)
+        # Check if we have video URLs in the context
+        if not context.video_urls or len(context.video_urls) == 0:
+            self.logger.error(f"No video URLs found in context for {client_id}")
             await self.send_message(
                 client_id,
-                "Please upload an image directly through WhatsApp instead of sending a URL.",
+                "Sorry, there was an error with the video selection. Please try again.",
             )
-        # Handle the case where the message is already a media URL path from our server
-        elif message.startswith("/media/images/") and message.endswith(
-            (".jpg", ".jpeg", ".png")
-        ):
-            # This is already a processed media URL, use it directly
-            self.logger.info(f"Using already processed media URL: {message}")
+            self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
+            return
 
-            # Store the public URL in the context
-            context.selected_image = message
+        # Try to parse the selection as a number
+        try:
+            # Clean up the message (remove any non-numeric characters)
+            selection = "".join(filter(str.isdigit, message))
+            if not selection:
+                raise ValueError("No numeric selection found")
 
-            # Also set event_image if needed by template
-            if context.template_id:
-                parts = context.template_id.split("_")
-                if len(parts) >= 3:
-                    content_type = parts[2]
+            selection_num = int(selection)
 
-                    # For events templates, set main_image
-                    if content_type == "events":
-                        self.logger.info(
-                            f"Setting main_image for events template to {message[:50]}..."
-                        )
-                        if not context.template_data:
-                            context.template_data = {}
-                        context.template_data["main_image"] = message
+            # Check if the selection is valid
+            if selection_num < 1 or selection_num > len(context.video_urls):
+                await self.send_message(
+                    client_id,
+                    f"Please select a valid option between 1 and {len(context.video_urls)}.",
+                )
+                return
 
-                    # For templates requiring event_image
-                    if "event_image" in get_required_keys(context.template_id):
-                        context.event_image = message
-                        self.logger.info(
-                            "Also setting event_image to the same URL for template compatibility"
-                        )
+            # Get the selected video URL
+            try:
+                selected_video = context.video_urls[selection_num - 1]
+                # Make sure the URL is valid
+                if not selected_video or not isinstance(selected_video, str):
+                    raise ValueError(f"Invalid video URL: {selected_video}")
+            except (IndexError, ValueError) as e:
+                self.logger.error(f"Error getting selected video: {e}")
+                await self.send_message(
+                    client_id,
+                    "Sorry, there was an error with your selection. Please try again or upload your own video.",
+                )
+                self.state_manager.set_state(
+                    client_id, WorkflowState.WAITING_FOR_VIDEO_UPLOAD
+                )
+                return
 
-                        # Update template data if it exists
-                        if context.template_data:
-                            context.template_data["event_image"] = message
+            # Store the selected video in the context
+            context.selected_video = selected_video
+            context.video_background = selected_video
+
+            # Update template_data
+            if not context.template_data:
+                context.template_data = {}
+            context.template_data["video_background"] = selected_video
 
             self.state_manager.update_context(client_id, context.model_dump())
-            await self.send_message(client_id, "Image uploaded successfully!")
+
+            # Confirm the selection
+            await self.send_message(
+                client_id, f"Great! You've selected video {selection_num}."
+            )
 
             # Move to scheduling
             self.state_manager.set_state(client_id, WorkflowState.SCHEDULE_SELECTION)
             await self.send_scheduling_options(client_id)
-        else:
-            # Invalid format
+
+        except ValueError as e:
+            self.logger.error(f"Error parsing video selection: {e}")
             await self.send_message(
                 client_id,
-                "Please send your image as an attachment.",
+                "Please reply with just the number of the video you want to use (1-4).",
             )
+            return
+
+    async def handle_waiting_for_caption(self, client_id: str, message: str) -> None:
+        """Handle the WAITING_FOR_CAPTION state"""
+        context = WorkflowContext(**self.state_manager.get_context(client_id))
+
+        if not message:
+            await self.send_message(client_id, MESSAGES["caption_prompt"])
+            return
+
+        # Store the caption if not already stored
+        if not context.caption:
+            context.caption = message
+            context.original_text = message
+            self.state_manager.update_context(client_id, context.model_dump())
+
+            # Initialize template_data if not exists
+            if not context.template_data:
+                context.template_data = {}
+            context.template_data["caption_text"] = message
+            self.state_manager.update_context(client_id, context.model_dump())
+
+        # Generate content based on the caption
+        await self.send_message(client_id, MESSAGES["generating"])
+
+        try:
+            # Prepare user inputs for template
+            user_inputs = {
+                "caption_text": context.caption,  # Use stored caption
+            }
+
+            # Generate content using template
+            (
+                caption,
+                media_urls,
+                template_data,
+            ) = await self.content_generator.generate_template_content(
+                template_id=context.template_id, user_inputs=user_inputs
+            )
+
+            context.caption = caption
+
+            # Make sure we store the media URLs properly
+            if media_urls and len(media_urls) > 0:
+                self.logger.info(f"Storing {len(media_urls)} media URLs in context")
+                context.image_urls = media_urls
+                context.selected_image = media_urls[0]
+
+                # Also store media options in template_data if not already there
+                if template_data and "media_options" not in template_data:
+                    template_data["media_options"] = media_urls
+
+            context.template_data = template_data
+            self.state_manager.update_context(client_id, context.model_dump())
+
+            # Send the generated caption
+            await self.send_message(
+                client_id, f"Here is the caption for the post: {context.caption}"
+            )
+
+            # Move to media upload/selection
+            await self.ask_for_media_upload(client_id)
+
+        except Exception as e:
+            self.logger.error(f"Error generating content: {e}")
+            await self.send_message(client_id, f"Error generating content: {e}")
+            # Reset to caption input state
+            self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
 
     async def complete_workflow(self, client_id: str) -> None:
         """Complete the workflow and clean up resources"""

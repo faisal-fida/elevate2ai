@@ -6,7 +6,6 @@ from app.constants import DEFAULT_TEMPLATE_CLIENT_ID
 from app.services.content.template_config import (
     FieldSource,
     get_template_config,
-    get_field_config,
     build_template_id,
     get_required_keys,
 )
@@ -68,49 +67,80 @@ class TemplateService:
         Returns a tuple of (field_name, workflow_state, prompt) or None if no fields need to be collected.
         """
         missing_fields = self.get_missing_fields(platform, content_type, context)
+        template_config = get_template_config(platform, content_type)
 
-        # Process fields in a specific order of priority
-        priority_order = [
-            "destination_name",
-            "event_name",
-            "price_text",
-            "main_image",
-            "event_image",
-            "video_background",
-        ]
+        if not template_config:
+            self.logger.warning(
+                f"No template configuration found for {platform}_{content_type}"
+            )
+            return None
+
+        # Sort fields based on dependencies and source type
+        def get_field_priority(field_name: str) -> int:
+            field_config = template_config.fields.get(field_name)
+            if not field_config:
+                return 999
+
+            # User input fields come first
+            if field_config.source == FieldSource.USER_INPUT:
+                return 0
+            # Then AI-generated fields that need user input
+            elif (
+                field_config.source == FieldSource.AI_GENERATED
+                and field_config.workflow_state
+            ):
+                return 1
+            # Then external service fields
+            elif field_config.source == FieldSource.EXTERNAL_SERVICE:
+                return 2
+            # Then derived fields
+            elif field_config.source == FieldSource.DERIVED:
+                return 3
+            return 999
 
         # Sort missing fields by priority
-        missing_fields.sort(
-            key=lambda x: priority_order.index(x) if x in priority_order else 999
-        )
+        missing_fields.sort(key=get_field_priority)
 
         for field in missing_fields:
-            field_config = get_field_config(platform, content_type, field)
+            field_config = template_config.fields.get(field)
+            if not field_config:
+                continue
 
-            # Collect fields that should come from user input or AI generation with user input
-            if field_config:
-                if field_config.source == FieldSource.USER_INPUT:
-                    # Get the workflow state for this field
-                    if field_config.workflow_state:
-                        workflow_state = getattr(
-                            WorkflowState, field_config.workflow_state
-                        )
-                        return (
-                            field,
-                            workflow_state,
-                            field_config.prompt or f"Please enter {field}:",
-                        )
-                # For AI-generated fields that need user input
-                elif (
-                    field_config.source == FieldSource.AI_GENERATED
-                    and field_config.workflow_state
-                ):
+            # Handle user input fields
+            if field_config.source == FieldSource.USER_INPUT:
+                if field_config.workflow_state:
+                    workflow_state = getattr(WorkflowState, field_config.workflow_state)
+                    return (
+                        field,
+                        workflow_state,
+                        field_config.prompt or f"Please enter {field}:",
+                    )
+
+            # Handle AI-generated fields that need user input
+            elif (
+                field_config.source == FieldSource.AI_GENERATED
+                and field_config.workflow_state
+            ):
+                # Check if we have all dependencies
+                if all(dep in context.template_data for dep in field_config.depends_on):
                     workflow_state = getattr(WorkflowState, field_config.workflow_state)
                     return (
                         field,
                         workflow_state,
                         field_config.prompt or f"Please enter information for {field}:",
                     )
+
+            # Handle external service fields that need user input
+            elif (
+                field_config.source == FieldSource.EXTERNAL_SERVICE
+                and field_config.workflow_state
+            ):
+                workflow_state = getattr(WorkflowState, field_config.workflow_state)
+                return (
+                    field,
+                    workflow_state,
+                    field_config.prompt or f"Please provide {field}:",
+                )
 
         return None
 
@@ -121,9 +151,10 @@ class TemplateService:
         Prepare template data based on the context and template configuration.
         This centralizes the logic for populating template fields.
         """
-        template_data = {}
-        template_config = get_template_config(platform, content_type)
+        # Start with existing template data if available
+        template_data = context.template_data.copy() if context.template_data else {}
 
+        template_config = get_template_config(platform, content_type)
         if not template_config:
             self.logger.warning(
                 f"No template configuration found for {platform}_{content_type}"
@@ -132,46 +163,54 @@ class TemplateService:
 
         # Process each field based on its source
         for field_name, field_config in template_config.fields.items():
+            # Skip if field is already in template_data and has a value
+            if field_name in template_data and template_data[field_name]:
+                continue
+
             # User input fields - get from context
             if field_config.source == FieldSource.USER_INPUT:
+                # Check context attributes first
                 if hasattr(context, field_name) and getattr(context, field_name):
                     template_data[field_name] = getattr(context, field_name)
+                # For media fields, check selected media
+                elif field_name == "main_image" and context.selected_image:
+                    template_data[field_name] = context.selected_image
+                elif field_name == "video_background" and context.selected_video:
+                    template_data[field_name] = context.selected_video
 
             # AI generated fields - typically caption_text
             elif field_config.source == FieldSource.AI_GENERATED:
                 if field_name == "caption_text" and context.caption:
                     template_data[field_name] = context.caption
+                elif hasattr(context, field_name) and getattr(context, field_name):
+                    template_data[field_name] = getattr(context, field_name)
 
             # External service fields - images and videos
             elif field_config.source == FieldSource.EXTERNAL_SERVICE:
-                if field_name == "main_image" and context.selected_image:
-                    template_data[field_name] = context.selected_image
-                elif field_name == "video_background" and context.selected_video:
-                    template_data[field_name] = context.selected_video
-
-            # For USER_INPUT fields that are images or videos, also use the selected media
-            elif field_config.source == FieldSource.USER_INPUT:
-                # For image fields, use the selected image
-                if field_name == "main_image" and context.selected_image:
-                    self.logger.info(
-                        f"Using selected_image for main_image: {context.selected_image[:50]}..."
-                    )
-                    template_data[field_name] = context.selected_image
-                # For video fields, use the selected video
-                elif field_name == "video_background" and context.selected_video:
-                    template_data[field_name] = context.selected_video
+                if field_name == "main_image":
+                    # Try context.selected_image first, then context.main_image
+                    if context.selected_image:
+                        template_data[field_name] = context.selected_image
+                    elif context.main_image:
+                        template_data[field_name] = context.main_image
+                elif field_name == "video_background":
+                    # Try context.selected_video first, then context.video_background
+                    if context.selected_video:
+                        template_data[field_name] = context.selected_video
+                    elif context.video_background:
+                        template_data[field_name] = context.video_background
 
             # Derived fields - calculated from other fields
             elif field_config.source == FieldSource.DERIVED:
                 # Handle derived fields based on their dependencies
-                pass
+                if all(dep in template_data for dep in field_config.depends_on):
+                    # TODO: Implement derived field logic
+                    pass
 
-        if (
-            "event_image" in template_config.fields
-            and "event_image" not in template_data
-            and context.selected_image
-        ):
-            template_data["event_image"] = context.selected_image
+        # Log the prepared template data
+        self.logger.info(
+            f"Prepared template data for {platform}_{content_type}: {template_data}"
+        )
 
         return template_data
 
@@ -192,72 +231,55 @@ class TemplateService:
                     {},
                 )
 
-            # Get required fields from template configuration
-            required_fields = [
-                field_name
-                for field_name, field_config in template_config.fields.items()
-                if field_config.required
-            ]
-
-            # Check for missing required fields
-            missing_fields = [
-                field for field in required_fields if field not in template_data
-            ]
-
-            # Special handling for events templates - if main_image is missing but we're in events content type
-            if "main_image" in missing_fields and content_type == "events":
-                self.logger.warning(
-                    "Missing main_image for events template, will be handled by execution handler"
-                )
-                # Remove main_image from missing fields to allow validation to proceed
-                missing_fields = [
-                    field for field in missing_fields if field != "main_image"
-                ]
-
-            if missing_fields:
-                return (
-                    False,
-                    f"Missing required fields: {', '.join(missing_fields)}",
-                    {},
-                )
-
-            # Validate field values
+            # Track missing and invalid fields
+            missing_fields = []
+            invalid_fields = []
             validated_data = {}
-            for field, value in template_data.items():
-                field_config = template_config.fields.get(field)
 
-                if not field_config:
-                    # Pass through fields not in the configuration
-                    validated_data[field] = value
+            # Check each required field
+            for field_name, field_config in template_config.fields.items():
+                if not field_config.required:
                     continue
 
-                # Validate based on field type
-                if field.endswith("_name") and field_config.max_words:
-                    words = str(value).strip().split()
+                # Check if field is present
+                if field_name not in template_data:
+                    missing_fields.append(field_name)
+                    continue
+
+                value = template_data[field_name]
+
+                # Validate field value
+                if value is None or (isinstance(value, str) and not value.strip()):
+                    missing_fields.append(field_name)
+                    continue
+
+                # Validate max words if specified
+                if field_config.max_words and isinstance(value, str):
+                    words = value.split()
                     if len(words) > field_config.max_words:
-                        return (
-                            False,
-                            f"{field} must be {field_config.max_words} words or less",
-                            {},
+                        invalid_fields.append(
+                            f"{field_name} exceeds {field_config.max_words} words"
                         )
-                    validated_data[field] = " ".join(words)
+                        continue
 
-                # Validate media URLs
-                elif field in ["main_image", "event_image", "video_background"]:
-                    if not value or not isinstance(value, str):
-                        return False, f"Invalid {field} URL", {}
-                    validated_data[field] = value
+                # Add to validated data if all checks pass
+                validated_data[field_name] = value
 
-                # Pass through other values
-                else:
-                    validated_data[field] = value
+            # Build error message if any issues found
+            if missing_fields or invalid_fields:
+                error_parts = []
+                if missing_fields:
+                    error_parts.append(
+                        f"Missing required fields: {', '.join(missing_fields)}"
+                    )
+                if invalid_fields:
+                    error_parts.append(f"Invalid fields: {', '.join(invalid_fields)}")
+                return False, "; ".join(error_parts), validated_data
 
             return True, "", validated_data
 
         except Exception as e:
-            self.logger.error(
-                f"Error validating template data for {platform}_{content_type}: {str(e)}"
-            )
+            self.logger.error(f"Error validating template data: {str(e)}")
             return False, f"Error validating template data: {str(e)}", {}
 
     def build_payload(

@@ -10,24 +10,31 @@ ContentType = Literal[
 ]
 WorkflowStateType = Literal[
     "init",
-    "waiting_for_promo",
-    "waiting_for_approval",
     "content_type_selection",
     "platform_selection_for_content",
     "caption_input",
-    "schedule_selection",
-    "confirmation",
-    "image_inclusion_decision",
-    "post_execution",
-    # New states for template-specific input collection
-    "waiting_for_destination",
-    "waiting_for_event_name",
-    "waiting_for_price",
-    "waiting_for_event_image",
-    # Media selection states
+    "caption_generation",
     "media_source_selection",
     "waiting_for_media_upload",
     "video_selection",
+    "schedule_selection",
+    "confirmation",
+    "post_execution",
+    "image_inclusion_decision",
+    "image_selection",
+    # Template-specific input states
+    "waiting_for_destination",
+    "waiting_for_event_name",
+    "waiting_for_price",
+    "waiting_for_headline",
+    "waiting_for_caption",
+    "waiting_for_tip_details",
+    "waiting_for_seasonal_details",
+    # Media handling states
+    "waiting_for_video_upload",
+    # Validation states
+    "validation_error",
+    "field_collection",
 ]
 
 # Media source options
@@ -61,6 +68,7 @@ class WorkflowContext(BaseModel):
     caption: str = ""
     original_text: str = ""
     selected_content_type: str = ""
+    event_image: str = ""
 
     # Platform selection
     selected_platforms: List[str] = Field(default_factory=list)
@@ -75,35 +83,44 @@ class WorkflowContext(BaseModel):
     image_urls: List[str] = Field(default_factory=list)
     video_urls: List[str] = Field(default_factory=list)
     is_video_content: bool = False
+    media_source: str = "search"
+    waiting_for_image_decision: bool = False
 
     # Template-specific fields
     event_name: str = ""
     destination_name: str = ""
     price_text: str = ""
-    event_image: str = ""
+    caption_text: str = ""
+    tip_details: str = ""
+    seasonal_details: str = ""
+    video_background: str = ""
+    main_image: str = ""
+
+    # Template configuration
     template_id: str = ""
     template_type: str = ""
     template_data: Dict[str, Any] = Field(default_factory=dict)
+    template_validation_errors: List[str] = Field(default_factory=list)
 
     # Platform-specific outputs
     platform_images: Dict[str, str] = Field(default_factory=dict)
     platform_specific_captions: Dict[str, str] = Field(default_factory=dict)
+    platform_specific_media: Dict[str, Dict[str, str]] = Field(default_factory=dict)
 
-    # Workflow control
+    # Scheduling
     schedule_time: str = ""
-    media_source: str = "search"
-    waiting_for_image_decision: bool = False
 
     # Status tracking
     post_status: Dict[str, bool] = Field(default_factory=dict)
     current_platform_index: int = 0
+    field_collection_state: Dict[str, bool] = Field(default_factory=dict)
+    validation_errors: List[str] = Field(default_factory=list)
 
     # Media metadata from WhatsApp
     media_metadata: Optional[Dict[str, Dict[str, str]]] = None
 
     # Legacy/compatibility fields - consider removing in future versions
     include_images: bool = True
-    video_background: str = ""  # Used by some templates
 
     class Config:
         arbitrary_types_allowed = True

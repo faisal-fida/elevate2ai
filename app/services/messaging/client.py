@@ -8,10 +8,15 @@ allowing the application to send text messages, media, and interactive elements.
 from __future__ import annotations
 import httpx
 import re
+import os
 from typing import Dict, Any, Optional, Union, List
 from app.logging import setup_logger
 from app.services.types import MediaItem, ButtonItem, SectionItem
 from app.config import MEDIA_BASE_URL  # noqa: F401
+
+# Directory for temporary video storage
+TEMP_DIR = "media/temp_videos"
+os.makedirs(TEMP_DIR, exist_ok=True)
 
 
 class MessagingClient:
@@ -190,6 +195,101 @@ class WhatsApp(MessagingClient):
 
         return responses
 
+    async def _download_video(
+        self, client: httpx.AsyncClient, video_url: str, filename: str
+    ) -> str:
+        """
+        Download a video from URL to local storage.
+
+        Args:
+            client: httpx async client
+            video_url: URL of the video to download
+            filename: Name to save the file as
+
+        Returns:
+            Path to the downloaded file
+        """
+        local_path = os.path.join(TEMP_DIR, filename)
+
+        try:
+            async with client.stream("GET", video_url) as response:
+                if response.status_code == 200:
+                    with open(local_path, "wb") as f:
+                        async for chunk in response.aiter_bytes():
+                            f.write(chunk)
+                    return local_path
+                else:
+                    raise Exception(f"Failed to download video: {response.status_code}")
+        except Exception as e:
+            self.logger.error(f"Error downloading video: {str(e)}")
+            if os.path.exists(local_path):
+                os.remove(local_path)
+            raise
+
+    async def _upload_video_to_whatsapp(
+        self, client: httpx.AsyncClient, video_path: str
+    ) -> str:
+        """
+        Upload a video to WhatsApp's media endpoint.
+
+        Args:
+            client: httpx async client
+            video_path: Path to the local video file
+
+        Returns:
+            Media ID from WhatsApp
+        """
+        upload_url = f"{self.v15_base_url}/{self.phone_number_id}/media"
+
+        with open(video_path, "rb") as video_file:
+            files = {"file": (os.path.basename(video_path), video_file, "video/mp4")}
+            data = {"messaging_product": "whatsapp", "type": "video/mp4"}
+
+            response = await client.post(
+                upload_url,
+                files=files,
+                data=data,
+                headers={"Authorization": f"Bearer {self.token}"},
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                return result.get("id")
+            else:
+                raise Exception(f"Failed to upload video: {response.text}")
+
+    async def _handle_video_url(
+        self, client: httpx.AsyncClient, url: str, filename: str
+    ) -> str:
+        """
+        Handle video URL by downloading and uploading to WhatsApp.
+
+        Args:
+            client: httpx async client
+            url: Video URL
+            filename: Name to save the file as
+
+        Returns:
+            WhatsApp media ID
+        """
+        local_path = None
+        try:
+            # Download video
+            local_path = await self._download_video(client, url, filename)
+            self.logger.info(f"Downloaded video to {local_path}")
+
+            # Upload to WhatsApp
+            media_id = await self._upload_video_to_whatsapp(client, local_path)
+            self.logger.info(f"Uploaded video, got media ID: {media_id}")
+
+            return media_id
+
+        finally:
+            # Cleanup: Delete local file
+            if local_path and os.path.exists(local_path):
+                os.remove(local_path)
+                self.logger.info(f"Cleaned up local file: {local_path}")
+
     async def _send_single_media_item(
         self,
         client: httpx.AsyncClient,
@@ -206,37 +306,49 @@ class WhatsApp(MessagingClient):
             self.logger.error(f"Unsupported media type: {media_type}")
             return {"error": f"Unsupported media type: {media_type}"}
 
-        # Validate URL
-        if not item.get("url"):
-            self.logger.error(f"Missing URL for {media_type}")
-            return {"error": f"Missing URL for {media_type}"}
-
-        url = item.get("url")
-        if url.startswith("/"):
-            # url = f"{MEDIA_BASE_URL}{url}" # TODO: Uncomment this line
-            url = "https://images.unsplash.com/photo-1454496522488-7a8e488e8606"
-        else:
-            self.logger.info(f"URL is already absolute: {url}")
-
-        # Validate the URL format
-        if not re.match(r"^https?://", url):
-            self.logger.error(f"Invalid URL format: {url}")
-            return {"error": f"Invalid URL format: {url}"}
-
-        # Prepare payload
+        # Prepare base payload
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": recipient_type,
             "to": phone_number,
             "type": media_type,
-            media_type: {"link": url},
         }
 
-        # Add caption if present
-        if caption := item.get("caption"):
-            payload[media_type]["caption"] = caption
-
         try:
+            # Handle media_id if present
+            if media_id := item.get("media_id"):
+                payload[media_type] = {"id": media_id}
+            # Handle URL if present
+            elif url := item.get("url"):
+                if url.startswith("/"):
+                    # url = f"{MEDIA_BASE_URL}{url}" # TODO: Uncomment this line
+                    url = "https://images.unsplash.com/photo-1454496522488-7a8e488e8606"
+                else:
+                    self.logger.info(f"URL is already absolute: {url}")
+
+                # Validate the URL format
+                if not re.match(r"^https?://", url):
+                    self.logger.error(f"Invalid URL format: {url}")
+                    return {"error": f"Invalid URL format: {url}"}
+
+                # Special handling for videos from external sources
+                if media_type == "video" and (
+                    "pexels.com" in url or "unsplash.com" in url
+                ):
+                    media_id = await self._handle_video_url(
+                        client, url, f"temp_video_{hash(url)}.mp4"
+                    )
+                    payload[media_type] = {"id": media_id}
+                else:
+                    payload[media_type] = {"link": url}
+            else:
+                self.logger.error(f"Neither media_id nor URL provided for {media_type}")
+                return {"error": f"Neither media_id nor URL provided for {media_type}"}
+
+            # Add caption if present
+            if caption := item.get("caption"):
+                payload[media_type]["caption"] = caption
+
             self.logger.info(f"Sending {media_type} to {phone_number}")
             response = await client.post(self.url, headers=self.headers, json=payload)
             response_data = response.json()

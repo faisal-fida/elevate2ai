@@ -109,6 +109,7 @@ class WorkflowManager:
                     WorkflowState.WAITING_FOR_MEDIA_UPLOAD: self.caption_handler.handle,
                     WorkflowState.VIDEO_SELECTION: self.caption_handler.handle,
                     WorkflowState.IMAGE_SELECTION: self.caption_handler.handle,
+                    WorkflowState.WAITING_FOR_CAPTION: self.caption_handler.handle,
                 }
 
                 if message_text.startswith("MEDIA_MESSAGE:"):

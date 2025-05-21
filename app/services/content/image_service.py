@@ -48,12 +48,22 @@ class PexelsProvider:
             for video in data.get("videos", []):
                 video_files = video.get("video_files", [])
                 if video_files:
-                    # Get HD or highest quality available
-                    hd_files = [f for f in video_files if f.get("quality") == "hd"]
-                    if hd_files:
-                        video_urls.append(hd_files[0].get("link", ""))
-                    elif video_files:
-                        video_urls.append(video_files[0].get("link", ""))
+                    # Filter for HD resolutions (720p to 1080p range)
+                    medium_files = [
+                        f
+                        for f in video_files
+                        if (
+                            720 <= f.get("height", 0) <= 1080
+                            or 1280 <= f.get("width", 0) <= 1920
+                        )
+                        and f.get("quality") == "hd"
+                    ]
+                    if medium_files:
+                        # Sort by resolution to get the best quality within our range
+                        medium_files.sort(
+                            key=lambda x: (x.get("height", 0), x.get("width", 0))
+                        )
+                        video_urls.append(medium_files[0].get("link", ""))
             return video_urls
         except Exception as e:
             self.logger.error(f"Error searching videos from Pexels: {e}")

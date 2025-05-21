@@ -34,6 +34,7 @@ class TemplateConfig(BaseModel):
     type: str
     fields: Dict[str, FieldConfig]
     platforms: List[str] = Field(default_factory=list)
+    is_video: bool = False  # Flag to indicate if this is a video-based template
 
 
 # Define the centralized template configuration
@@ -42,14 +43,18 @@ TEMPLATE_CONFIGS = {
     "instagram_reels": TemplateConfig(
         type="reels",
         platforms=["instagram"],
+        is_video=True,
         fields={
             "caption_text": FieldConfig(
                 source=FieldSource.AI_GENERATED,
                 prompt="Please provide instructions for generating your reels post:",
+                workflow_state="WAITING_FOR_CAPTION",
+                required=True,
             ),
             "video_background": FieldConfig(
                 source=FieldSource.EXTERNAL_SERVICE,
-                prompt="We'll find a suitable video for your reels.",
+                prompt="We'll find a suitable video for your reels post.",
+                required=True,
             ),
         },
     ),
@@ -60,12 +65,20 @@ TEMPLATE_CONFIGS = {
             "main_image": FieldConfig(
                 source=FieldSource.EXTERNAL_SERVICE,
                 prompt="We'll find a suitable image for your tips post.",
+                required=True,
             ),
             "caption_text": FieldConfig(
                 source=FieldSource.AI_GENERATED,
-                prompt="Please provide instructions for generating your tips post:",
+                prompt="Please provide the main tip or advice (5 words or less):",
                 max_words=5,
                 workflow_state="WAITING_FOR_HEADLINE",
+                required=True,
+            ),
+            "tip_details": FieldConfig(
+                source=FieldSource.USER_INPUT,
+                prompt="Please provide additional details for your tip:",
+                workflow_state="WAITING_FOR_TIP_DETAILS",
+                required=True,
             ),
         },
     ),
@@ -78,19 +91,24 @@ TEMPLATE_CONFIGS = {
                 prompt="Please enter the destination name (5 words or less):",
                 max_words=5,
                 workflow_state="WAITING_FOR_DESTINATION",
+                required=True,
             ),
             "main_image": FieldConfig(
                 source=FieldSource.EXTERNAL_SERVICE,
                 prompt="We'll find a suitable image for your promotion.",
+                required=True,
             ),
             "caption_text": FieldConfig(
                 source=FieldSource.AI_GENERATED,
-                prompt="Please provide instructions for generating your promotion post:",
+                prompt="Please provide a brief description of the promotion:",
+                workflow_state="WAITING_FOR_CAPTION",
+                required=True,
             ),
             "price_text": FieldConfig(
                 source=FieldSource.USER_INPUT,
                 prompt="Please enter the price or promotion details (e.g., '$99', '50% off'):",
                 workflow_state="WAITING_FOR_PRICE",
+                required=True,
             ),
         },
     ),
@@ -133,13 +151,38 @@ TEMPLATE_CONFIGS = {
         fields={
             "caption_text": FieldConfig(
                 source=FieldSource.AI_GENERATED,
-                prompt="Please provide instructions for generating your seasonal post:",
-                max_words=5,
+                prompt="Please provide the seasonal theme or message:",
                 workflow_state="WAITING_FOR_HEADLINE",
+                required=True,
             ),
             "main_image": FieldConfig(
                 source=FieldSource.EXTERNAL_SERVICE,
                 prompt="We'll find a suitable image for your seasonal post.",
+                required=True,
+            ),
+            "seasonal_details": FieldConfig(
+                source=FieldSource.USER_INPUT,
+                prompt="Please provide additional details about this seasonal post:",
+                workflow_state="WAITING_FOR_SEASONAL_DETAILS",
+                required=True,
+            ),
+        },
+    ),
+    "instagram_generic": TemplateConfig(
+        type="generic",
+        platforms=["instagram"],
+        fields={
+            "caption_text": FieldConfig(
+                source=FieldSource.AI_GENERATED,
+                prompt="Please provide the main message for your post:",
+                workflow_state="WAITING_FOR_CAPTION",
+                required=True,
+            ),
+            "main_image": FieldConfig(
+                source=FieldSource.USER_INPUT,
+                prompt="Please upload an image for your post:",
+                workflow_state="WAITING_FOR_MEDIA_UPLOAD",
+                required=True,
             ),
         },
     ),
@@ -193,6 +236,7 @@ TEMPLATE_CONFIGS = {
     "tiktok_promo": TemplateConfig(
         type="promo",
         platforms=["tiktok"],
+        is_video=True,
         fields={
             "destination_name": FieldConfig(
                 source=FieldSource.USER_INPUT,
@@ -203,6 +247,7 @@ TEMPLATE_CONFIGS = {
             "video_background": FieldConfig(
                 source=FieldSource.EXTERNAL_SERVICE,
                 prompt="We'll find a suitable video for your TikTok promotion.",
+                required=True,
             ),
             "caption_text": FieldConfig(
                 source=FieldSource.AI_GENERATED,
@@ -218,14 +263,36 @@ TEMPLATE_CONFIGS = {
     "tiktok_generic": TemplateConfig(
         type="generic",
         platforms=["tiktok"],
+        is_video=True,
         fields={
             "caption_text": FieldConfig(
                 source=FieldSource.AI_GENERATED,
-                prompt="Please provide instructions for generating your TikTok post:",
+                prompt="Please provide the main message for your TikTok:",
+                workflow_state="WAITING_FOR_CAPTION",
+                required=True,
             ),
             "video_background": FieldConfig(
                 source=FieldSource.EXTERNAL_SERVICE,
                 prompt="We'll find a suitable video for your TikTok post.",
+                required=True,
+            ),
+        },
+    ),
+    "tiktok_reels": TemplateConfig(
+        type="reels",
+        platforms=["tiktok"],
+        is_video=True,
+        fields={
+            "caption_text": FieldConfig(
+                source=FieldSource.AI_GENERATED,
+                prompt="Please provide instructions for generating your TikTok reel:",
+                workflow_state="WAITING_FOR_CAPTION",
+                required=True,
+            ),
+            "video_background": FieldConfig(
+                source=FieldSource.EXTERNAL_SERVICE,
+                prompt="We'll find a suitable video for your TikTok reel.",
+                required=True,
             ),
         },
     ),
@@ -234,9 +301,20 @@ TEMPLATE_CONFIGS = {
 
 def get_template_config(platform: str, content_type: str) -> Optional[TemplateConfig]:
     """Get template configuration for a platform and content type"""
-    for _, config in TEMPLATE_CONFIGS.items():
-        if platform in config.platforms and config.type == content_type:
+    # First try direct lookup
+    template_key = f"{platform}_{content_type}"
+    if template_key in TEMPLATE_CONFIGS:
+        return TEMPLATE_CONFIGS[template_key]
+
+    # If not found, look through all configs
+    for template_key, config in TEMPLATE_CONFIGS.items():
+        if (
+            platform in config.platforms
+            and template_key.startswith(f"{platform}_")
+            and template_key.endswith(f"_{content_type}")
+        ):
             return config
+
     return None
 
 

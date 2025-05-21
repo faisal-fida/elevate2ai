@@ -21,6 +21,15 @@ class ContentTypeSelectionHandler(BaseHandler):
             context.selected_content_type = message
             supported_platforms = self._get_platforms_for_content_type(message)
             context.supported_platforms = supported_platforms
+
+            # Set video content flag based on platform and content type
+            is_video_content = (
+                "tiktok" in supported_platforms
+                or message in ["reels"]
+                or self._is_video_template(message, supported_platforms)
+            )
+            context.is_video_content = is_video_content
+
             self.state_manager.update_context(client_id, context.model_dump())
             self.state_manager.set_state(
                 client_id, WorkflowState.PLATFORM_SELECTION_FOR_CONTENT
@@ -81,3 +90,15 @@ class ContentTypeSelectionHandler(BaseHandler):
             all_types.update(platform_data["content_types"])
 
         return sorted(list(all_types))
+
+    def _is_video_template(self, content_type: str, platforms: List[str]) -> bool:
+        """Check if the content type requires video for any of the platforms"""
+        from app.services.content.template_config import get_template_config
+
+        for platform in platforms:
+            template_config = get_template_config(platform, content_type)
+            if template_config and (
+                template_config.is_video or "video_background" in template_config.fields
+            ):
+                return True
+        return False
