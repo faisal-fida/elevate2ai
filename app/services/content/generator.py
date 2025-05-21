@@ -68,13 +68,15 @@ class ContentGenerator:
                 )
 
             # Get template details
-            required_keys = template_config.get("required_fields", [])
-            template_type = template_config.get("type", "")
+            required_keys = [
+                key for key, field in template_config.fields.items() if field.required
+            ]
+            template_type = template_config.type
             is_video_content = template_type == "video"
 
             # Generate caption
             context = {**user_inputs, "template_type": template_type}
-            caption = await template_service.generate_caption(
+            caption = await self.openai_service.generate_formatted_caption(
                 template_type=template_type, context=context
             )
 

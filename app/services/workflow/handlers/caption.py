@@ -429,7 +429,8 @@ class CaptionHandler(BaseHandler):
 
             # Send the generated caption
             await self.send_message(
-                client_id, f"Here is the caption for the post: {context.caption}"
+                client_id,
+                f"Here is the caption for the post in headline_input: {context.caption}",
             )
 
             # Check if we need to ask for image upload or use external service
@@ -452,6 +453,10 @@ class CaptionHandler(BaseHandler):
             self.logger.info(
                 f"Raw context image_urls length: {len(raw_context['image_urls'])}"
             )
+
+        # Ensure caption field is present with at least an empty string
+        if "caption" not in raw_context or raw_context["caption"] is None:
+            raw_context["caption"] = ""
 
         # Convert to WorkflowContext object
         context = WorkflowContext(**raw_context)
@@ -803,7 +808,9 @@ class CaptionHandler(BaseHandler):
                                 context.template_data["main_image"] = public_url
 
                             # For templates requiring event_image
-                            if "event_image" in get_required_keys(context.template_id):
+                            if "event_image" in get_required_keys(
+                                context.template_id, content_type
+                            ):
                                 context.event_image = public_url
                                 self.logger.info(
                                     "Also setting event_image to the same URL for template compatibility"

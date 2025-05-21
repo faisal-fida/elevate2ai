@@ -19,10 +19,6 @@ class TemplateService:
         """Initialize the template service"""
         self.logger = setup_logger(__name__)
 
-    def get_template(self, template_id: str) -> Optional[Dict[str, Any]]:
-        """Get the template configuration"""
-        return get_template_config(template_id)
-
     def get_template_id(
         self,
         platform: str,
@@ -186,75 +182,110 @@ class TemplateService:
         Validate template data against the template configuration.
         Returns (is_valid, error_message, validated_data)
         """
-        required_fields = self.get_required_fields(platform, content_type)
+        try:
+            # Get template configuration
+            template_config = get_template_config(platform, content_type)
+            if not template_config:
+                return (
+                    False,
+                    f"No template configuration found for {platform}_{content_type}",
+                    {},
+                )
 
-        # Check for missing required fields
-        missing_fields = [
-            field for field in required_fields if field not in template_data
-        ]
-
-        # Special handling for events templates - if main_image is missing but we're in events content type
-        if "main_image" in missing_fields and content_type == "events":
-            self.logger.warning(
-                "Missing main_image for events template, will be handled by execution handler"
-            )
-            # Remove main_image from missing fields to allow validation to proceed
-            missing_fields = [
-                field for field in missing_fields if field != "main_image"
+            # Get required fields from template configuration
+            required_fields = [
+                field_name
+                for field_name, field_config in template_config.fields.items()
+                if field_config.required
             ]
 
-        if missing_fields:
-            return False, f"Missing required fields: {', '.join(missing_fields)}", {}
+            # Check for missing required fields
+            missing_fields = [
+                field for field in required_fields if field not in template_data
+            ]
 
-        # Validate field values
-        validated_data = {}
-        for field, value in template_data.items():
-            field_config = get_field_config(platform, content_type, field)
+            # Special handling for events templates - if main_image is missing but we're in events content type
+            if "main_image" in missing_fields and content_type == "events":
+                self.logger.warning(
+                    "Missing main_image for events template, will be handled by execution handler"
+                )
+                # Remove main_image from missing fields to allow validation to proceed
+                missing_fields = [
+                    field for field in missing_fields if field != "main_image"
+                ]
 
-            if not field_config:
-                # Pass through fields not in the configuration
-                validated_data[field] = value
-                continue
+            if missing_fields:
+                return (
+                    False,
+                    f"Missing required fields: {', '.join(missing_fields)}",
+                    {},
+                )
 
-            # Validate based on field type
-            if field.endswith("_name") and field_config.max_words:
-                words = str(value).strip().split()
-                if len(words) > field_config.max_words:
-                    return (
-                        False,
-                        f"{field} must be {field_config.max_words} words or less",
-                        {},
-                    )
-                validated_data[field] = " ".join(words)
+            # Validate field values
+            validated_data = {}
+            for field, value in template_data.items():
+                field_config = template_config.fields.get(field)
 
-            # Validate media URLs
-            elif field in ["main_image", "event_image", "video_background"]:
-                if not value or not isinstance(value, str):
-                    return False, f"Invalid {field} URL", {}
-                validated_data[field] = value
+                if not field_config:
+                    # Pass through fields not in the configuration
+                    validated_data[field] = value
+                    continue
 
-            # Pass through other values
-            else:
-                validated_data[field] = value
+                # Validate based on field type
+                if field.endswith("_name") and field_config.max_words:
+                    words = str(value).strip().split()
+                    if len(words) > field_config.max_words:
+                        return (
+                            False,
+                            f"{field} must be {field_config.max_words} words or less",
+                            {},
+                        )
+                    validated_data[field] = " ".join(words)
 
-        return True, "", validated_data
+                # Validate media URLs
+                elif field in ["main_image", "event_image", "video_background"]:
+                    if not value or not isinstance(value, str):
+                        return False, f"Invalid {field} URL", {}
+                    validated_data[field] = value
+
+                # Pass through other values
+                else:
+                    validated_data[field] = value
+
+            return True, "", validated_data
+
+        except Exception as e:
+            self.logger.error(
+                f"Error validating template data for {platform}_{content_type}: {str(e)}"
+            )
+            return False, f"Error validating template data: {str(e)}", {}
 
     def build_payload(
         self, template_id: str, template_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Build a payload for the template"""
-        template = self.get_template(template_id)
-        if not template:
+
+        # Get the template configuration
+        # Template ID format is platform_client_id_content_type
+        parts = template_id.split("_")
+        if len(parts) < 3:
+            raise ValueError(f"Invalid template ID format: {template_id}")
+
+        platform = parts[0]
+        content_type = parts[-1]  # Last part is always content_type
+        template_config = get_template_config(platform, content_type)
+
+        if not template_config:
             raise ValueError(f"Template {template_id} not found")
 
         # Ensure all required keys are present
-        required_keys = template.get("required_keys", [])
+        required_keys = template_service.get_required_fields(platform, content_type)
         for key in required_keys:
             if key not in template_data:
                 raise ValueError(f"Missing required key: {key}")
 
         # Build payload based on template type
-        template_type = template.get("type", "")
+        template_type = template_config.type
         payload = {
             "template_id": template_id,
             "template_type": template_type,

@@ -32,10 +32,10 @@ class AsyncOpenAIService:
                 messages=messages,
                 **kwargs,
             )
-            return completion.choices[0].message.content if completion.choices else None
+            return completion.choices[0].message.content
         except Exception as e:
             self.logger.error(f"Error creating chat completion: {e}")
-            return None
+            return ""
 
     def validate_user_input(
         self, input_text: str, max_words: int = 5
@@ -60,7 +60,7 @@ class AsyncOpenAIService:
         template_type: str,
         context: Dict[str, Any],
         use_emojis: bool = True,
-    ) -> Optional[str]:
+    ) -> str:
         """
         Generate a template-specific, formatted caption with appropriate style and tone.
 
@@ -107,7 +107,7 @@ class AsyncOpenAIService:
             return await self.create_chat_completion(messages=messages)
         except Exception as e:
             self.logger.error(f"Error generating formatted caption: {e}")
-            return None
+            return ""
 
     async def generate_image_search_query(
         self, template_type: str, context: Dict[str, Any]

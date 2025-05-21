@@ -1,9 +1,11 @@
 import httpx
 from typing import Dict, Any
 from app.constants import SOCIAL_MEDIA_PLATFORMS
-from app.services.content.template_service import template_service
 from app.config import settings
 from app.logging import setup_logger
+
+from app.services.content.template_config import get_template_config
+from app.services.content.template_service import template_service
 
 
 class SwitchboardService:
@@ -32,12 +34,19 @@ class SwitchboardService:
 
         # Get the template configuration
         template_id = f"{platform.lower()}_{client_id}_{post_type.lower()}"
-        template_config = template_service.get_template(template_id)
+        template_config = get_template_config(platform, post_type)
         if not template_config:
             raise ValueError(f"Template {template_id} not found in configuration")
 
         # Filter template_data to include only required keys
-        required_keys = template_config.get("required_keys", [])
+        required_keys = template_service.get_required_fields(platform, post_type)
+
+        #! TODO: remove this once we have a real logo
+        required_keys.append("logo")
+        template_data["logo"] = (
+            "https://cdn.freebiesupply.com/logos/thumbs/2x/star-wars-logo.png"
+        )
+
         filtered_elements = {
             key: {"url": value}
             if key in ["main_image", "event_image", "video_background", "logo"]
@@ -71,25 +80,27 @@ class SwitchboardService:
         post_type: str,
     ) -> Dict[str, Any]:
         """Helper function to create an image using Switchboard Canvas"""
+        try:
+            for key in ["main_image", "event_image", "video_background", "logo"]:
+                val = template_data.get(key)
+                if isinstance(val, str) and val.startswith("/"):
+                    #! TODO: replace with a real external URL: template_data[key] = f"{MEDIA_BASE_URL}{url}"
+                    template_data[key] = (
+                        "https://images.unsplash.com/photo-1454496522488-7a8e488e8606"
+                    )
 
-        for key in ["main_image", "event_image", "video_background", "logo"]:
-            val = template_data.get(key)
-            if isinstance(val, str) and val.startswith("/"):
-                #! TODO: replace with a real external URL: template_data[key] = f"{MEDIA_BASE_URL}{url}"
-                template_data[key] = (
-                    "https://images.unsplash.com/photo-1454496522488-7a8e488e8606"
-                )
-            if key == "logo":
-                template_data[key] = (
-                    "https://images.unsplash.com/photo-1454496522488-7a8e488e8606"
-                )
+            self.logger.info(f"Editing image with template data: {template_data}")
+            payload = self.build_payload(client_id, template_data, platform, post_type)
+            self.logger.info(f"Successfully built payload: {payload}")
+            response = self.client.post(self.base_url, json=payload)
+            response.raise_for_status()
+            return response.json()
 
-        self.logger.info(f"Editing image with template data: {template_data}")
-        payload = self.build_payload(client_id, template_data, platform, post_type)
-        response = self.client.post(self.base_url, json=payload)
-        response.raise_for_status()
-        self.logger.info(f"Successfully edited image with payload: {payload}")
-        return response.json()
+        except Exception as e:
+            self.logger.error(
+                f"Error editing image | Payload: {payload} | Response: {response.text} | Error: {e}"
+            )
+            return None
 
 
 switchboard_service = SwitchboardService()
