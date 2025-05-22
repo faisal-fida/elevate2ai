@@ -66,83 +66,72 @@ class TemplateService:
         Get the next field that needs to be collected from the user.
         Returns a tuple of (field_name, workflow_state, prompt) or None if no fields need to be collected.
         """
-        missing_fields = self.get_missing_fields(platform, content_type, context)
         template_config = get_template_config(platform, content_type)
-
         if not template_config:
             self.logger.warning(
                 f"No template configuration found for {platform}_{content_type}"
             )
             return None
 
-        # Sort fields based on dependencies and source type
-        def get_field_priority(field_name: str) -> int:
-            field_config = template_config.fields.get(field_name)
-            if not field_config:
-                return 999
+        # Get list of already collected fields
+        collected_fields = []
+        for field_name in template_config.fields:
+            if hasattr(context, field_name) and getattr(context, field_name):
+                collected_fields.append(field_name)
+            elif context.template_data and field_name in context.template_data:
+                collected_fields.append(field_name)
 
-            # User input fields come first
-            if field_config.source == FieldSource.USER_INPUT:
-                return 0
-            # Then AI-generated fields that need user input
-            elif (
-                field_config.source == FieldSource.AI_GENERATED
-                and field_config.workflow_state
-            ):
-                return 1
-            # Then external service fields
-            elif field_config.source == FieldSource.EXTERNAL_SERVICE:
-                return 2
-            # Then derived fields
-            elif field_config.source == FieldSource.DERIVED:
-                return 3
-            return 999
+        # Use template's get_next_required_field to determine next field
+        next_field = template_config.get_next_required_field(collected_fields)
+        if not next_field:
+            return None
 
-        # Sort missing fields by priority
-        missing_fields.sort(key=get_field_priority)
+        field_config = template_config.fields[next_field]
+        if not field_config.workflow_state:
+            return None
 
-        for field in missing_fields:
-            field_config = template_config.fields.get(field)
-            if not field_config:
+        return (
+            next_field,
+            WorkflowState[field_config.workflow_state],
+            field_config.prompt or f"Please provide {next_field}",
+        )
+
+    def validate_field_dependencies(
+        self, platform: str, content_type: str, context: WorkflowContext
+    ) -> Tuple[bool, str]:
+        """
+        Validate that all field dependencies are met.
+        Returns (is_valid, error_message)
+        """
+        template_config = get_template_config(platform, content_type)
+        if not template_config:
+            return (
+                False,
+                f"No template configuration found for {platform}_{content_type}",
+            )
+
+        # Check each field's dependencies
+        for field_name, field_config in template_config.fields.items():
+            if not field_config.required:
                 continue
 
-            # Handle user input fields
-            if field_config.source == FieldSource.USER_INPUT:
-                if field_config.workflow_state:
-                    workflow_state = getattr(WorkflowState, field_config.workflow_state)
+            # Skip if field is not collected yet
+            if not hasattr(context, field_name) and (
+                not context.template_data or field_name not in context.template_data
+            ):
+                continue
+
+            # Check dependencies
+            for dep in field_config.depends_on:
+                if not hasattr(context, dep) and (
+                    not context.template_data or dep not in context.template_data
+                ):
                     return (
-                        field,
-                        workflow_state,
-                        field_config.prompt or f"Please enter {field}:",
+                        False,
+                        f"Field {field_name} requires {dep} to be collected first",
                     )
 
-            # Handle AI-generated fields that need user input
-            elif (
-                field_config.source == FieldSource.AI_GENERATED
-                and field_config.workflow_state
-            ):
-                # Check if we have all dependencies
-                if all(dep in context.template_data for dep in field_config.depends_on):
-                    workflow_state = getattr(WorkflowState, field_config.workflow_state)
-                    return (
-                        field,
-                        workflow_state,
-                        field_config.prompt or f"Please enter information for {field}:",
-                    )
-
-            # Handle external service fields that need user input
-            elif (
-                field_config.source == FieldSource.EXTERNAL_SERVICE
-                and field_config.workflow_state
-            ):
-                workflow_state = getattr(WorkflowState, field_config.workflow_state)
-                return (
-                    field,
-                    workflow_state,
-                    field_config.prompt or f"Please provide {field}:",
-                )
-
-        return None
+        return True, ""
 
     def prepare_template_data(
         self, platform: str, content_type: str, context: WorkflowContext

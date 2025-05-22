@@ -1,7 +1,7 @@
 from typing import List
 from app.services.messaging.state_manager import WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
-from app.constants import MESSAGES, SOCIAL_MEDIA_PLATFORMS, DEFAULT_TEMPLATE_CLIENT_ID
+from app.constants import MESSAGES, SOCIAL_MEDIA_PLATFORMS
 from app.services.types import WorkflowContext
 from app.services.content.template_service import template_service
 from app.services.content.template_config import build_template_id
@@ -177,56 +177,42 @@ class ContentTypeHandler(BaseHandler):
     async def check_template_fields(
         self, client_id: str, context: WorkflowContext
     ) -> bool:
-        """
-        Check if we need to collect template-specific fields first.
-        Returns True if template fields are being collected.
-        """
-        # Find template if not already set
-        if (
-            not context.template_id
-            and context.selected_platforms
-            and context.selected_content_type
-        ):
-            platform = context.selected_platforms[0]
-            content_type = context.selected_content_type
+        """Check if template-specific fields need to be collected"""
+        if not context.content_types:
+            return False
 
-            # Get the template ID
-            template_id = build_template_id(
-                platform=platform,
-                content_type=content_type,
-                client_id=DEFAULT_TEMPLATE_CLIENT_ID,
+        for platform, content_type in context.content_types.items():
+            # Build template ID
+            template_id = build_template_id(platform, content_type, client_id)
+            context.template_id = template_id
+            self.state_manager.update_context(client_id, vars(context))
+
+            # Get next field to collect
+            next_field = template_service.get_next_field_to_collect(
+                platform, content_type, context
             )
 
-            if template_id:
-                context.template_id = template_id
-                context.template_type = content_type
-                self.state_manager.update_context(client_id, context.model_dump())
+            if next_field:
+                field_name, workflow_state, prompt = next_field
+                self.state_manager.set_state(client_id, workflow_state)
+                await self.send_message(client_id, prompt)
+                return True
 
-        # If we have a template ID, check for required fields
-        if context.template_id:
-            # Extract platform and content_type from template_id
-            parts = context.template_id.split("_")
-            if len(parts) >= 3:
-                platform = parts[0]
-                content_type = parts[2]
-
-                # Use the template service to get the next field to collect
-                next_field = template_service.get_next_field_to_collect(
-                    platform=platform, content_type=content_type, context=context
+            # Validate field dependencies
+            is_valid, error_message = template_service.validate_field_dependencies(
+                platform, content_type, context
+            )
+            if not is_valid:
+                self.logger.warning(
+                    f"Field dependency validation failed: {error_message}"
                 )
+                await self.send_message(
+                    client_id,
+                    f"There was an issue with the template fields: {error_message}",
+                )
+                return True
 
-                if next_field:
-                    field_name, workflow_state, prompt = next_field
-                    self.logger.info(
-                        f"Requesting field {field_name} for {platform}_{content_type}"
-                    )
-
-                    # Set the state and send the prompt
-                    self.state_manager.set_state(client_id, workflow_state)
-                    await self.send_message(client_id, prompt)
-                    return True
-
-        return False  # No template fields needed
+        return False
 
     async def send_platform_content_types(
         self, client_id: str, platform: str, content_types: List[str]

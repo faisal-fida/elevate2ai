@@ -120,29 +120,43 @@ class AsyncOpenAIService:
     ) -> Optional[str]:
         """
         Generate a search query for finding relevant images based on the template type and context.
+        Returns a 2-4 word search query optimized for external media services.
 
         Args:
             template_type: Type of content (destination, events, etc.)
             context: Dict containing caption and other relevant fields
 
         Returns:
-            Search query string
+            Search query string (2-4 words) or default fallback
         """
         try:
             system_prompt = (
                 "You are a search query generator for finding relevant images. "
                 "Create a concise, specific search query that will find high-quality images "
-                "matching the post type and content. Return only the search query."
+                "matching the post type and content. The query MUST be 2-4 words only. "
+                "Return only the search query, no additional text."
             )
 
-            user_prompt = f"Create a search query for finding images related to a {template_type} post with this caption: '{context.get('caption', '')}'."
+            # Default queries for different template types
+            default_queries = {
+                "destination": "scenic travel destination",
+                "events": "professional business event",
+                "promo": "promotional advertisement professional",
+                "tips": "business advice tips",
+                "seasonal": "seasonal celebration festive",
+                "reels": "lifestyle social content",
+                "generic": "social media content",
+            }
+
+            user_prompt = (
+                f"Create a 2-4 word search query for finding images related to a {template_type} post. "
+                f"Context: {context.get('caption', '')}. "
+            )
 
             if template_type == "destination":
-                user_prompt += (
-                    f" The destination is {context.get('destination_name', '')}."
-                )
+                user_prompt += f" Destination: {context.get('destination_name', '')}"
             elif template_type == "events":
-                user_prompt += f" The event is {context.get('event_name', '')}."
+                user_prompt += f" Event: {context.get('event_name', '')}"
 
             messages = [
                 {"role": "system", "content": system_prompt},
@@ -153,9 +167,21 @@ class AsyncOpenAIService:
             query = await self.create_chat_completion(messages=messages)
 
             if query:
+                # Clean and validate the query
                 query = query.strip("\"'").strip()
+                words = query.split()
+                if len(words) < 2 or len(words) > 4:
+                    self.logger.warning(
+                        f"Query '{query}' not within 2-4 words, using default"
+                    )
+                    return default_queries.get(template_type, "professional content")
+                return query
 
-            return query
+            self.logger.warning(
+                f"No query generated, using default for {template_type}"
+            )
+            return default_queries.get(template_type, "professional content")
+
         except Exception as e:
             self.logger.error(f"Error generating image search query: {e}")
-            return None
+            return default_queries.get(template_type, "professional content")
