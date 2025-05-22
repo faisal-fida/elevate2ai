@@ -528,80 +528,131 @@ class CaptionHandler(BaseHandler):
 
     async def handle_media_upload(self, client_id: str, message: str) -> None:
         """Handle media upload from WhatsApp"""
-        context = WorkflowContext(**self.state_manager.get_context(client_id))
-
         try:
-            # Extract media ID and type from message
-            media_id = message.split(":")[2]
-            media_type = message.split(":")[1]
+            context = WorkflowContext(**self.state_manager.get_context(client_id))
 
-            if context.is_video_content and media_type != "video":
-                await self.send_message(
-                    client_id,
-                    "This post requires a video. Please upload a video file in MP4 format.",
-                )
-                return
-
-            elif not context.is_video_content and media_type != "image":
-                await self.send_message(
-                    client_id,
-                    "This post requires an image. Please upload an image file.",
-                )
-                return
-
-            # Process the media upload
-            public_url = await self._process_media_upload(
-                client_id, media_id, media_type
-            )
-
-            if public_url:
-                if context.is_video_content:
-                    context.selected_video = public_url
-                    context.video_background = public_url
-                    if context.template_data is None:
-                        context.template_data = {}
-                    context.template_data["video_background"] = public_url
-                else:
-                    context.selected_image = public_url
-                    if context.template_data is None:
-                        context.template_data = {}
-                    context.template_data["main_image"] = public_url
-
-                self.state_manager.update_context(client_id, context.model_dump())
-                await self.send_message(client_id, "Media uploaded successfully!")
-
-                # Get template config to determine next state
-                parts = context.template_id.split("_")
+            # Process media message
+            if message.startswith("MEDIA_MESSAGE:"):
+                parts = message.split(":")
                 if len(parts) >= 3:
-                    platform = parts[0]
-                    content_type = parts[2]
-                    template_config = get_template_config(platform, content_type)
+                    media_type = parts[1]
+                    media_id = parts[2]
 
-                    if template_config:
-                        field_name = (
-                            "video_background"
-                            if context.is_video_content
-                            else "main_image"
-                        )
-                        field_config = template_config.fields.get(field_name)
+                    # Get template configuration if available
+                    if context.template_id:
+                        parts = context.template_id.split("_")
+                        if len(parts) >= 3:
+                            platform = parts[0]
+                            content_type = parts[2]
+                            template_config = get_template_config(
+                                platform, content_type
+                            )
 
-                        if field_config and field_config.next_state:
-                            self.state_manager.set_state(
-                                client_id, WorkflowState[field_config.next_state]
-                            )
-                            # Send appropriate prompt for the next state
-                            next_field = template_config.get_next_required_field(
-                                [field_name]
-                            )
-                            if next_field and next_field in template_config.fields:
-                                await self.send_message(
-                                    client_id,
-                                    template_config.fields[next_field].prompt
-                                    or "Please provide the next required information.",
+                            if template_config:
+                                # Check if media type matches platform requirements
+                                is_video_required = (
+                                    template_config.is_video
+                                    or "video_background" in template_config.fields
                                 )
-                            return
+                                if is_video_required and media_type != "video":
+                                    await self.send_message(
+                                        client_id,
+                                        f"This {platform} {content_type} post requires a video. Please upload a video file.",
+                                    )
+                                    return
+                                elif not is_video_required and media_type != "image":
+                                    await self.send_message(
+                                        client_id,
+                                        f"This {platform} {content_type} post requires an image. Please upload an image file.",
+                                    )
+                                    return
 
-                # If no specific next state, move to scheduling
+                    # Process the media upload
+                    media_url = await self._process_media_upload(
+                        client_id, media_id, media_type
+                    )
+                    if not media_url:
+                        await self.send_message(
+                            client_id,
+                            "Sorry, there was an error processing your media upload. Please try again.",
+                        )
+                        return
+
+                    # Store the media URL based on type
+                    if media_type == "video":
+                        context.selected_video = media_url
+                        context.video_background = media_url
+                        if not context.template_data:
+                            context.template_data = {}
+                        context.template_data["video_background"] = media_url
+                    else:
+                        context.selected_image = media_url
+                        context.main_image = media_url
+                        if not context.template_data:
+                            context.template_data = {}
+                        context.template_data["main_image"] = media_url
+
+                    self.state_manager.update_context(client_id, context.model_dump())
+
+                    # Get template configuration if available
+                    if context.template_id:
+                        parts = context.template_id.split("_")
+                        if len(parts) >= 3:
+                            platform = parts[0]
+                            content_type = parts[2]
+                            template_config = get_template_config(
+                                platform, content_type
+                            )
+
+                            if template_config:
+                                # Check if all required fields are collected
+                                required_fields = get_required_keys(
+                                    platform, content_type
+                                )
+                                missing_fields = []
+
+                                for field in required_fields:
+                                    if field == "main_image" and context.selected_image:
+                                        continue
+                                    if (
+                                        field == "video_background"
+                                        and context.selected_video
+                                    ):
+                                        continue
+                                    if field == "caption_text" and context.caption:
+                                        continue
+                                    if (
+                                        field == "destination_name"
+                                        and context.destination_name
+                                    ):
+                                        continue
+                                    if field == "price_text" and context.price_text:
+                                        continue
+                                    missing_fields.append(field)
+
+                                if missing_fields:
+                                    # Ask for the next required field
+                                    if "destination_name" in missing_fields:
+                                        self.state_manager.set_state(
+                                            client_id,
+                                            WorkflowState.WAITING_FOR_DESTINATION,
+                                        )
+                                        await self.send_message(
+                                            client_id,
+                                            "Please enter the destination name (5 words or less):",
+                                        )
+                                        return
+                                    elif "price_text" in missing_fields:
+                                        self.state_manager.set_state(
+                                            client_id, WorkflowState.WAITING_FOR_PRICE
+                                        )
+                                        await self.send_message(
+                                            client_id,
+                                            "Please enter the price or promotion details (e.g., '$99', '50% off'):",
+                                        )
+                                        return
+
+                # If all required fields are collected or no template config, move to scheduling
                 self.state_manager.set_state(
                     client_id, WorkflowState.SCHEDULE_SELECTION
                 )
