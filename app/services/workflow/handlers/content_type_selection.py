@@ -25,7 +25,6 @@ class ContentTypeSelectionHandler(BaseHandler):
             # Set video content flag based on platform and content type
             is_video_content = (
                 "tiktok" in supported_platforms
-                or message in ["reels"]
                 or self._is_video_template(message, supported_platforms)
             )
             context.is_video_content = is_video_content

@@ -168,24 +168,24 @@ TEMPLATE_CONFIGS = {
             ),
         },
     ),
-    "instagram_generic": TemplateConfig(
-        type="generic",
-        platforms=["instagram"],
-        fields={
-            "caption_text": FieldConfig(
-                source=FieldSource.AI_GENERATED,
-                prompt="Please provide the main message for your post:",
-                workflow_state="WAITING_FOR_CAPTION",
-                required=True,
-            ),
-            "main_image": FieldConfig(
-                source=FieldSource.USER_INPUT,
-                prompt="Please upload an image for your post:",
-                workflow_state="WAITING_FOR_MEDIA_UPLOAD",
-                required=True,
-            ),
-        },
-    ),
+    # "instagram_generic": TemplateConfig(
+    #     type="generic",
+    #     platforms=["instagram"],
+    #     fields={
+    #         "caption_text": FieldConfig(
+    #             source=FieldSource.AI_GENERATED,
+    #             prompt="Please provide the main message for your post:",
+    #             workflow_state="WAITING_FOR_CAPTION",
+    #             required=True,
+    #         ),
+    #         "main_image": FieldConfig(
+    #             source=FieldSource.USER_INPUT,
+    #             prompt="Please upload an image for your post:",
+    #             workflow_state="WAITING_FOR_MEDIA_UPLOAD",
+    #             required=True,
+    #         ),
+    #     },
+    # ),
     # LinkedIn Templates
     "linkedin_tips": TemplateConfig(
         type="tips",
@@ -278,24 +278,24 @@ TEMPLATE_CONFIGS = {
             ),
         },
     ),
-    "tiktok_reels": TemplateConfig(
-        type="reels",
-        platforms=["tiktok"],
-        is_video=True,
-        fields={
-            "caption_text": FieldConfig(
-                source=FieldSource.AI_GENERATED,
-                prompt="Please provide instructions for generating your TikTok reel:",
-                workflow_state="WAITING_FOR_CAPTION",
-                required=True,
-            ),
-            "video_background": FieldConfig(
-                source=FieldSource.EXTERNAL_SERVICE,
-                prompt="We'll find a suitable video for your TikTok reel.",
-                required=True,
-            ),
-        },
-    ),
+    # "tiktok_reels": TemplateConfig(
+    #     type="reels",
+    #     platforms=["tiktok"],
+    #     is_video=True,
+    #     fields={
+    #         "caption_text": FieldConfig(
+    #             source=FieldSource.AI_GENERATED,
+    #             prompt="Please provide instructions for generating your TikTok reel:",
+    #             workflow_state="WAITING_FOR_CAPTION",
+    #             required=True,
+    #         ),
+    #         "video_background": FieldConfig(
+    #             source=FieldSource.EXTERNAL_SERVICE,
+    #             prompt="We'll find a suitable video for your TikTok reel.",
+    #             required=True,
+    #         ),
+    #     },
+    # ),
 }
 
 

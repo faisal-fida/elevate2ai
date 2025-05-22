@@ -62,6 +62,12 @@ class CaptionHandler(BaseHandler):
         elif current_state == WorkflowState.WAITING_FOR_HEADLINE:
             await self.handle_headline_input(client_id, message)
             return
+        elif current_state == WorkflowState.WAITING_FOR_TIP_DETAILS:
+            await self.handle_waiting_for_tip_details(client_id, message)
+            return
+        elif current_state == WorkflowState.WAITING_FOR_SEASONAL_DETAILS:
+            await self.handle_waiting_for_seasonal_details(client_id, message)
+            return
 
         if not message:
             # Check if we need to collect template-specific fields first
@@ -1160,3 +1166,59 @@ class CaptionHandler(BaseHandler):
         """Send a media gallery to the client"""
         for item in media_items:
             await self.client.send_media(media_items=[item], phone_number=client_id)
+
+    async def handle_waiting_for_tip_details(
+        self, client_id: str, message: str
+    ) -> None:
+        """Handle tip details input"""
+        context = WorkflowContext(**self.state_manager.get_context(client_id))
+
+        # Check if this is a media message
+        context_data = self.state_manager.get_context(client_id)
+        if context_data.get("is_media_message", False) or message.startswith(
+            "MEDIA_MESSAGE:"
+        ):
+            # This is a media message, not tip details
+            await self.send_message(
+                client_id,
+                "I need text for your tip details, not a media file. Please provide additional details for your tip:",
+            )
+            return
+
+        # Store the tip details
+        context.tip_details = message
+        self.state_manager.update_context(client_id, context.model_dump())
+
+        await self.send_message(client_id, "Great! Tip details saved.")
+
+        # Return to caption input state and continue processing
+        self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
+        await self.handle(client_id, context.original_text)
+
+    async def handle_waiting_for_seasonal_details(
+        self, client_id: str, message: str
+    ) -> None:
+        """Handle seasonal details input"""
+        context = WorkflowContext(**self.state_manager.get_context(client_id))
+
+        # Check if this is a media message
+        context_data = self.state_manager.get_context(client_id)
+        if context_data.get("is_media_message", False) or message.startswith(
+            "MEDIA_MESSAGE:"
+        ):
+            # This is a media message, not seasonal details
+            await self.send_message(
+                client_id,
+                "I need text for your seasonal details, not a media file. Please provide additional details about this seasonal post:",
+            )
+            return
+
+        # Store the seasonal details
+        context.seasonal_details = message
+        self.state_manager.update_context(client_id, context.model_dump())
+
+        await self.send_message(client_id, "Great! Seasonal details saved.")
+
+        # Return to caption input state and continue processing
+        self.state_manager.set_state(client_id, WorkflowState.CAPTION_INPUT)
+        await self.handle(client_id, context.original_text)

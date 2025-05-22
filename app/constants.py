@@ -32,15 +32,14 @@ SOCIAL_MEDIA_PLATFORMS = {
             "promo",
             "tips",
             "seasonal",
-            "reels",
         ],
     },
     "linkedin": {
-        "sizes": [{"width": 1200, "height": 627}],
+        "sizes": [{"width": 1080, "height": 1080}],
         "content_types": ["events", "tips", "seasonal"],
     },
     "tiktok": {
-        "sizes": [{"width": 1080, "height": 1920}],
+        "sizes": [{"width": 1080, "height": 1080}],
         "content_types": ["generic", "promo"],
     },
 }

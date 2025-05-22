@@ -104,6 +104,8 @@ class WorkflowManager:
                     WorkflowState.WAITING_FOR_EVENT_NAME: self.caption_handler.handle,
                     WorkflowState.WAITING_FOR_HEADLINE: self.caption_handler.handle,
                     WorkflowState.WAITING_FOR_PRICE: self.caption_handler.handle,
+                    WorkflowState.WAITING_FOR_TIP_DETAILS: self.caption_handler.handle,
+                    WorkflowState.WAITING_FOR_SEASONAL_DETAILS: self.caption_handler.handle,
                     # Media selection states
                     WorkflowState.MEDIA_SOURCE_SELECTION: self.caption_handler.handle,
                     WorkflowState.WAITING_FOR_MEDIA_UPLOAD: self.caption_handler.handle,
