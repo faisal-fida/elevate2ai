@@ -60,6 +60,7 @@ class AsyncOpenAIService:
         template_type: str,
         context: Dict[str, Any],
         use_emojis: bool = True,
+        caption_field: str = "caption_text",
     ) -> str:
         """
         Generate a template-specific, formatted caption with appropriate style and tone.
@@ -68,6 +69,7 @@ class AsyncOpenAIService:
             template_type: Type of content (destination, events, etc.)
             context: Dict containing fields like destination_name, event_name, etc.
             use_emojis: Whether to include emojis in the caption
+            caption_field: The field to use for caption ("caption_text" or "post_caption")
 
         Returns:
             Formatted caption text
@@ -85,7 +87,7 @@ class AsyncOpenAIService:
                     " Include relevant emojis to make the content engaging."
                 )
 
-            # Build user prompt based on the template type
+            # Build user prompt based on the template type and caption field
             user_prompt = ""
             if template_type == "destination":
                 user_prompt = f"Create an exciting caption for a travel post about {context.get('destination_name', 'a destination')}. Evoke travel excitement and wanderlust."
@@ -93,17 +95,21 @@ class AsyncOpenAIService:
                 user_prompt = f"Create an engaging caption for an event called {context.get('event_name', 'an event')}. Highlight the excitement and key details."
             elif template_type == "promo":
                 user_prompt = f"Create a promotional caption for {context.get('promo_text', 'a promotion')}. Make it persuasive with a clear call to action."
-            elif template_type == "caption_only":
-                user_prompt = f"Create an engaging caption about {context.get('caption_text', 'this topic')}. Focus on engagement and shareability."
             else:
-                user_prompt = f"Create a caption for a {template_type} post about {context.get('caption_text', 'this topic')}."
+                # Use the appropriate caption field from context
+                caption_content = context.get(
+                    caption_field, context.get("caption_text", "this topic")
+                )
+                user_prompt = f"Create a caption for a {template_type} post about {caption_content}."
 
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ]
 
-            self.logger.info(f"Generating formatted caption for {template_type}")
+            self.logger.info(
+                f"Generating formatted caption for {template_type} using {caption_field}"
+            )
             return await self.create_chat_completion(messages=messages)
         except Exception as e:
             self.logger.error(f"Error generating formatted caption: {e}")

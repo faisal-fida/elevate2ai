@@ -26,6 +26,7 @@ class FieldConfig(BaseModel):
     fallback: Optional[str] = None  # Fallback value if not provided
     depends_on: List[str] = Field(default_factory=list)  # Fields this depends on
     workflow_state: Optional[str] = None  # State to set when collecting this field
+    is_template_field: bool = True  # Whether this field is used in template generation
 
 
 class TemplateConfig(BaseModel):
@@ -47,7 +48,7 @@ TEMPLATE_CONFIGS = {
         fields={
             "caption_text": FieldConfig(
                 source=FieldSource.AI_GENERATED,
-                prompt="Please provide instructions for generating your reels post:",
+                prompt="Please provide a brief description for your reels post:",
                 workflow_state="WAITING_FOR_CAPTION",
                 required=True,
             ),
@@ -69,15 +70,8 @@ TEMPLATE_CONFIGS = {
             ),
             "caption_text": FieldConfig(
                 source=FieldSource.AI_GENERATED,
-                prompt="Please provide the main tip or advice (5 words or less):",
-                max_words=5,
-                workflow_state="WAITING_FOR_HEADLINE",
-                required=True,
-            ),
-            "tip_details": FieldConfig(
-                source=FieldSource.USER_INPUT,
-                prompt="Please provide additional details for your tip:",
-                workflow_state="WAITING_FOR_TIP_DETAILS",
+                prompt="Please provide a brief description for your tips post:",
+                workflow_state="WAITING_FOR_CAPTION",
                 required=True,
             ),
         },
@@ -86,6 +80,11 @@ TEMPLATE_CONFIGS = {
         type="promo",
         platforms=["instagram"],
         fields={
+            "main_image": FieldConfig(
+                source=FieldSource.EXTERNAL_SERVICE,
+                prompt="We'll find a suitable image for your promotion.",
+                required=True,
+            ),
             "destination_name": FieldConfig(
                 source=FieldSource.USER_INPUT,
                 prompt="Please enter the destination name (5 words or less):",
@@ -93,20 +92,16 @@ TEMPLATE_CONFIGS = {
                 workflow_state="WAITING_FOR_DESTINATION",
                 required=True,
             ),
-            "main_image": FieldConfig(
-                source=FieldSource.EXTERNAL_SERVICE,
-                prompt="We'll find a suitable image for your promotion.",
-                required=True,
-            ),
             "caption_text": FieldConfig(
                 source=FieldSource.AI_GENERATED,
-                prompt="Please provide a brief description of the promotion:",
+                prompt="Please provide a brief description for your promotion:",
                 workflow_state="WAITING_FOR_CAPTION",
                 required=True,
             ),
             "price_text": FieldConfig(
                 source=FieldSource.USER_INPUT,
                 prompt="Please enter the price or promotion details (e.g., '$99', '50% off'):",
+                max_words=5,
                 workflow_state="WAITING_FOR_PRICE",
                 required=True,
             ),
@@ -116,15 +111,24 @@ TEMPLATE_CONFIGS = {
         type="destination",
         platforms=["instagram"],
         fields={
+            "main_image": FieldConfig(
+                source=FieldSource.EXTERNAL_SERVICE,
+                prompt="We'll find a suitable image for your destination.",
+                required=True,
+            ),
             "destination_name": FieldConfig(
                 source=FieldSource.USER_INPUT,
                 prompt="Please enter the destination name (5 words or less):",
                 max_words=5,
                 workflow_state="WAITING_FOR_DESTINATION",
+                required=True,
             ),
-            "main_image": FieldConfig(
-                source=FieldSource.EXTERNAL_SERVICE,
-                prompt="We'll find a suitable image for your destination.",
+            "post_caption": FieldConfig(
+                source=FieldSource.AI_GENERATED,
+                prompt="Please provide a brief description for your destination post:",
+                workflow_state="WAITING_FOR_CAPTION",
+                required=True,
+                is_template_field=False,  # This field is only for the social media post
             ),
         },
     ),
@@ -132,16 +136,25 @@ TEMPLATE_CONFIGS = {
         type="events",
         platforms=["instagram"],
         fields={
+            "main_image": FieldConfig(
+                source=FieldSource.USER_INPUT,
+                prompt="Please upload an image for your event:",
+                workflow_state="WAITING_FOR_MEDIA_UPLOAD",
+                required=True,
+            ),
             "event_name": FieldConfig(
                 source=FieldSource.USER_INPUT,
                 prompt="Please enter the event name (5 words or less):",
                 max_words=5,
                 workflow_state="WAITING_FOR_EVENT_NAME",
+                required=True,
             ),
-            "main_image": FieldConfig(
-                source=FieldSource.USER_INPUT,
-                prompt="Please upload an image for your event:",
-                workflow_state="WAITING_FOR_MEDIA_UPLOAD",
+            "post_caption": FieldConfig(
+                source=FieldSource.AI_GENERATED,
+                prompt="Please provide a brief description for your event post:",
+                workflow_state="WAITING_FOR_CAPTION",
+                required=True,
+                is_template_field=False,  # This field is only for the social media post
             ),
         },
     ),
@@ -149,43 +162,19 @@ TEMPLATE_CONFIGS = {
         type="seasonal",
         platforms=["instagram"],
         fields={
-            "caption_text": FieldConfig(
-                source=FieldSource.AI_GENERATED,
-                prompt="Please provide the seasonal theme or message:",
-                workflow_state="WAITING_FOR_HEADLINE",
-                required=True,
-            ),
             "main_image": FieldConfig(
                 source=FieldSource.EXTERNAL_SERVICE,
                 prompt="We'll find a suitable image for your seasonal post.",
                 required=True,
             ),
-            "seasonal_details": FieldConfig(
-                source=FieldSource.USER_INPUT,
-                prompt="Please provide additional details about this seasonal post:",
-                workflow_state="WAITING_FOR_SEASONAL_DETAILS",
+            "caption_text": FieldConfig(
+                source=FieldSource.AI_GENERATED,
+                prompt="Please provide a brief description for your seasonal post:",
+                workflow_state="WAITING_FOR_CAPTION",
                 required=True,
             ),
         },
     ),
-    # "instagram_generic": TemplateConfig(
-    #     type="generic",
-    #     platforms=["instagram"],
-    #     fields={
-    #         "caption_text": FieldConfig(
-    #             source=FieldSource.AI_GENERATED,
-    #             prompt="Please provide the main message for your post:",
-    #             workflow_state="WAITING_FOR_CAPTION",
-    #             required=True,
-    #         ),
-    #         "main_image": FieldConfig(
-    #             source=FieldSource.USER_INPUT,
-    #             prompt="Please upload an image for your post:",
-    #             workflow_state="WAITING_FOR_MEDIA_UPLOAD",
-    #             required=True,
-    #         ),
-    #     },
-    # ),
     # LinkedIn Templates
     "linkedin_tips": TemplateConfig(
         type="tips",
@@ -194,10 +183,13 @@ TEMPLATE_CONFIGS = {
             "main_image": FieldConfig(
                 source=FieldSource.EXTERNAL_SERVICE,
                 prompt="We'll find a suitable image for your LinkedIn tips.",
+                required=True,
             ),
             "caption_text": FieldConfig(
                 source=FieldSource.AI_GENERATED,
-                prompt="Please provide instructions for generating your LinkedIn tips post:",
+                prompt="Please provide a brief description for your LinkedIn tips post:",
+                workflow_state="WAITING_FOR_CAPTION",
+                required=True,
             ),
         },
     ),
@@ -205,13 +197,16 @@ TEMPLATE_CONFIGS = {
         type="seasonal",
         platforms=["linkedin"],
         fields={
-            "caption_text": FieldConfig(
-                source=FieldSource.AI_GENERATED,
-                prompt="Please provide instructions for generating your seasonal LinkedIn post:",
-            ),
             "main_image": FieldConfig(
                 source=FieldSource.EXTERNAL_SERVICE,
                 prompt="We'll find a suitable image for your seasonal LinkedIn post.",
+                required=True,
+            ),
+            "caption_text": FieldConfig(
+                source=FieldSource.AI_GENERATED,
+                prompt="Please provide a brief description for your seasonal LinkedIn post:",
+                workflow_state="WAITING_FOR_CAPTION",
+                required=True,
             ),
         },
     ),
@@ -219,16 +214,25 @@ TEMPLATE_CONFIGS = {
         type="events",
         platforms=["linkedin"],
         fields={
+            "main_image": FieldConfig(
+                source=FieldSource.USER_INPUT,
+                prompt="Please upload an image for your LinkedIn event:",
+                workflow_state="WAITING_FOR_MEDIA_UPLOAD",
+                required=True,
+            ),
             "event_name": FieldConfig(
                 source=FieldSource.USER_INPUT,
                 prompt="Please enter the event name (5 words or less):",
                 max_words=5,
                 workflow_state="WAITING_FOR_EVENT_NAME",
+                required=True,
             ),
-            "main_image": FieldConfig(
-                source=FieldSource.USER_INPUT,
-                prompt="Please upload an image for your LinkedIn event:",
-                workflow_state="WAITING_FOR_MEDIA_UPLOAD",
+            "post_caption": FieldConfig(
+                source=FieldSource.AI_GENERATED,
+                prompt="Please provide a brief description for your LinkedIn event post:",
+                workflow_state="WAITING_FOR_CAPTION",
+                required=True,
+                is_template_field=False,  # This field is only for the social media post
             ),
         },
     ),
@@ -238,25 +242,30 @@ TEMPLATE_CONFIGS = {
         platforms=["tiktok"],
         is_video=True,
         fields={
-            "destination_name": FieldConfig(
-                source=FieldSource.USER_INPUT,
-                prompt="Please enter the destination name (5 words or less):",
-                max_words=5,
-                workflow_state="WAITING_FOR_DESTINATION",
-            ),
             "video_background": FieldConfig(
                 source=FieldSource.EXTERNAL_SERVICE,
                 prompt="We'll find a suitable video for your TikTok promotion.",
                 required=True,
             ),
+            "destination_name": FieldConfig(
+                source=FieldSource.USER_INPUT,
+                prompt="Please enter the destination name (5 words or less):",
+                max_words=5,
+                workflow_state="WAITING_FOR_DESTINATION",
+                required=True,
+            ),
             "caption_text": FieldConfig(
                 source=FieldSource.AI_GENERATED,
-                prompt="Please provide instructions for generating your TikTok promotion:",
+                prompt="Please provide a brief description for your TikTok promotion:",
+                workflow_state="WAITING_FOR_CAPTION",
+                required=True,
             ),
             "price_text": FieldConfig(
                 source=FieldSource.USER_INPUT,
                 prompt="Please enter the price or promotion details (e.g., '$99', '50% off'):",
+                max_words=5,
                 workflow_state="WAITING_FOR_PRICE",
+                required=True,
             ),
         },
     ),
@@ -265,37 +274,19 @@ TEMPLATE_CONFIGS = {
         platforms=["tiktok"],
         is_video=True,
         fields={
-            "caption_text": FieldConfig(
-                source=FieldSource.AI_GENERATED,
-                prompt="Please provide the main message for your TikTok:",
-                workflow_state="WAITING_FOR_CAPTION",
-                required=True,
-            ),
             "video_background": FieldConfig(
                 source=FieldSource.EXTERNAL_SERVICE,
                 prompt="We'll find a suitable video for your TikTok post.",
                 required=True,
             ),
+            "caption_text": FieldConfig(
+                source=FieldSource.AI_GENERATED,
+                prompt="Please provide a brief description for your TikTok post:",
+                workflow_state="WAITING_FOR_CAPTION",
+                required=True,
+            ),
         },
     ),
-    # "tiktok_reels": TemplateConfig(
-    #     type="reels",
-    #     platforms=["tiktok"],
-    #     is_video=True,
-    #     fields={
-    #         "caption_text": FieldConfig(
-    #             source=FieldSource.AI_GENERATED,
-    #             prompt="Please provide instructions for generating your TikTok reel:",
-    #             workflow_state="WAITING_FOR_CAPTION",
-    #             required=True,
-    #         ),
-    #         "video_background": FieldConfig(
-    #             source=FieldSource.EXTERNAL_SERVICE,
-    #             prompt="We'll find a suitable video for your TikTok reel.",
-    #             required=True,
-    #         ),
-    #     },
-    # ),
 }
 
 

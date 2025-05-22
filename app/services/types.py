@@ -69,6 +69,7 @@ class WorkflowContext(BaseModel):
     original_text: str = ""
     selected_content_type: str = ""
     event_image: str = ""
+    post_caption: str = ""
 
     # Platform selection
     selected_platforms: List[str] = Field(default_factory=list)

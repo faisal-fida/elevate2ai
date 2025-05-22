@@ -76,8 +76,15 @@ class ContentGenerator:
 
             # Generate caption
             context = {**user_inputs, "template_type": template_type}
+
+            # Check if this template uses post_caption instead of caption_text
+            uses_post_caption = "post_caption" in template_config.fields
+            caption_field = "post_caption" if uses_post_caption else "caption_text"
+
             caption = await self.openai_service.generate_formatted_caption(
-                template_type=template_type, context=context
+                template_type=template_type,
+                context=context,
+                caption_field=caption_field,
             )
 
             # Handle media
@@ -86,6 +93,10 @@ class ContentGenerator:
             )
             media_urls = []
             template_data = {}
+
+            # Add the generated caption to template data
+            if caption:
+                template_data[caption_field] = caption
 
             if "event_image" in required_keys and user_inputs.get("event_image"):
                 media_urls = [user_inputs["event_image"]]

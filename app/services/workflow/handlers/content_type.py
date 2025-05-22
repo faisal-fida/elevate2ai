@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 from app.services.messaging.state_manager import WorkflowState
 from app.services.workflow.handlers.base import BaseHandler
 from app.constants import MESSAGES, SOCIAL_MEDIA_PLATFORMS, DEFAULT_TEMPLATE_CLIENT_ID

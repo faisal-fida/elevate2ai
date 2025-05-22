@@ -95,24 +95,8 @@ class CaptionHandler(BaseHandler):
                 if template_id:
                     context.template_id = template_id
                     context.template_type = context.selected_content_type
-
-                    # If we already have a selected_image and template needs event_image, set it
-                    if (
-                        "event_image" in get_required_keys(template_id)
-                        and context.selected_image
-                        and not context.event_image
-                    ):
-                        context.event_image = context.selected_image
-                        self.logger.info(
-                            "Setting event_image to selected_image for template compatibility"
-                        )
-
                     self.state_manager.update_context(client_id, context.model_dump())
                     break
-
-        # Check if we need to collect template-specific fields first
-        if await self.request_template_fields(client_id):
-            return  # Waiting for additional input
 
         # Generate content based on the caption
         await self.send_message(client_id, MESSAGES["generating"])
@@ -131,14 +115,27 @@ class CaptionHandler(BaseHandler):
                 platform = parts[0] if len(parts) >= 1 else ""
                 content_type = parts[2] if len(parts) >= 3 else ""
 
+                # Get template config to check if it uses caption_text
+                template_config = get_template_config(platform, content_type)
+                uses_caption_text = (
+                    template_config and "caption_text" in template_config.fields
+                )
+                uses_post_caption = (
+                    template_config and "post_caption" in template_config.fields
+                )
+
                 # Prepare user inputs for template
                 user_inputs = {}
 
-                # For seasonal templates, use the headline as caption_text
-                if content_type == "seasonal" and context.caption:
-                    user_inputs["caption_text"] = context.caption
-                else:
-                    user_inputs["caption_text"] = message
+                if uses_caption_text:
+                    # For templates that use caption_text in the template
+                    if content_type == "seasonal" and context.caption:
+                        user_inputs["caption_text"] = context.caption
+                    else:
+                        user_inputs["caption_text"] = message
+                elif uses_post_caption:
+                    # For templates that only need post_caption
+                    user_inputs["post_caption"] = message
 
                 # Add template-specific fields
                 if context.destination_name:
@@ -151,7 +148,7 @@ class CaptionHandler(BaseHandler):
                     user_inputs["event_image"] = context.event_image
                 elif context.selected_image:
                     # If template needs event_image and we have selected_image, use it
-                    if "event_image" in get_required_keys(context.template_id):
+                    if "event_image" in get_required_keys(platform, content_type):
                         user_inputs["event_image"] = context.selected_image
                         context.event_image = context.selected_image
                         self.logger.info(
@@ -167,7 +164,16 @@ class CaptionHandler(BaseHandler):
                     template_id=context.template_id, user_inputs=user_inputs
                 )
 
-                context.caption = caption
+                # Store the appropriate caption
+                if uses_post_caption:
+                    context.post_caption = caption
+                    # Also store in caption for compatibility
+                    context.caption = caption
+                else:
+                    context.caption = caption
+                    # For templates that use caption_text, also store in template_data
+                    if uses_caption_text and not template_data.get("caption_text"):
+                        template_data["caption_text"] = caption
 
                 # Make sure we store the media URLs properly
                 if media_urls and len(media_urls) > 0:
@@ -183,12 +189,6 @@ class CaptionHandler(BaseHandler):
 
                 # CRITICAL: Update the state manager with the modified context
                 self.state_manager.update_context(client_id, context.model_dump())
-
-        except ValueError as ve:
-            # Handle validation errors
-            self.logger.error(f"Validation error: {ve}")
-            await self.send_message(client_id, f"Error generating content: {ve}")
-            return
 
         except Exception as e:
             # Handle other errors
@@ -208,8 +208,11 @@ class CaptionHandler(BaseHandler):
             self.state_manager.update_context(client_id, context.model_dump())
 
         # Send the generated caption
+        caption_to_show = (
+            context.post_caption if context.post_caption else context.caption
+        )
         await self.send_message(
-            client_id, f"Here is the caption for the post: {context.caption}"
+            client_id, f"Here is the caption for the post: {caption_to_show}"
         )
 
         # Double-check that context is properly saved before proceeding
@@ -1067,26 +1070,58 @@ class CaptionHandler(BaseHandler):
             await self.send_message(client_id, MESSAGES["caption_prompt"])
             return
 
-        # Store the caption if not already stored
-        if not context.caption:
-            context.caption = message
-            context.original_text = message
-            self.state_manager.update_context(client_id, context.model_dump())
+        # Extract platform and content_type from template_id
+        parts = context.template_id.split("_")
+        if len(parts) < 3:
+            self.logger.error(f"Invalid template ID format: {context.template_id}")
+            await self.send_message(
+                client_id, "Sorry, there was an error processing your caption."
+            )
+            return
 
-            # Initialize template_data if not exists
+        platform = parts[0]
+        content_type = parts[2]
+
+        # Get template config to check caption type
+        template_config = get_template_config(platform, content_type)
+        if not template_config:
+            self.logger.error(
+                f"Template config not found for {platform}_{content_type}"
+            )
+            await self.send_message(
+                client_id, "Sorry, there was an error processing your caption."
+            )
+            return
+
+        # Store the caption based on template configuration
+        uses_caption_text = "caption_text" in template_config.fields
+        uses_post_caption = "post_caption" in template_config.fields
+
+        # Store the caption in appropriate fields
+        if uses_caption_text:
+            context.caption = message
             if not context.template_data:
                 context.template_data = {}
             context.template_data["caption_text"] = message
-            self.state_manager.update_context(client_id, context.model_dump())
+        elif uses_post_caption:
+            context.post_caption = message
+            context.caption = message  # For compatibility
+        else:
+            context.caption = message
+
+        context.original_text = message
+        self.state_manager.update_context(client_id, context.model_dump())
 
         # Generate content based on the caption
         await self.send_message(client_id, MESSAGES["generating"])
 
         try:
             # Prepare user inputs for template
-            user_inputs = {
-                "caption_text": context.caption,  # Use stored caption
-            }
+            user_inputs = {}
+            if uses_caption_text:
+                user_inputs["caption_text"] = message
+            elif uses_post_caption:
+                user_inputs["post_caption"] = message
 
             # Generate content using template
             (
@@ -1097,7 +1132,15 @@ class CaptionHandler(BaseHandler):
                 template_id=context.template_id, user_inputs=user_inputs
             )
 
-            context.caption = caption
+            # Store the appropriate caption
+            if uses_post_caption:
+                context.post_caption = caption
+                context.caption = caption  # For compatibility
+            else:
+                context.caption = caption
+                # For templates that use caption_text, also store in template_data
+                if uses_caption_text and not template_data.get("caption_text"):
+                    template_data["caption_text"] = caption
 
             # Make sure we store the media URLs properly
             if media_urls and len(media_urls) > 0:
@@ -1113,8 +1156,11 @@ class CaptionHandler(BaseHandler):
             self.state_manager.update_context(client_id, context.model_dump())
 
             # Send the generated caption
+            caption_to_show = (
+                context.post_caption if context.post_caption else context.caption
+            )
             await self.send_message(
-                client_id, f"Here is the caption for the post: {context.caption}"
+                client_id, f"Here is the caption for the post: {caption_to_show}"
             )
 
             # Move to media upload/selection
