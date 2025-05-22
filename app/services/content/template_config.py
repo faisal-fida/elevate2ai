@@ -26,7 +26,11 @@ class FieldConfig(BaseModel):
     fallback: Optional[str] = None  # Fallback value if not provided
     depends_on: List[str] = Field(default_factory=list)  # Fields this depends on
     workflow_state: Optional[str] = None  # State to set when collecting this field
+    next_state: Optional[str] = None  # Next state after collecting this field
     is_template_field: bool = True  # Whether this field is used in template generation
+    validation_rules: Optional[Dict[str, str]] = Field(
+        default_factory=dict
+    )  # Additional validation rules
 
 
 class TemplateConfig(BaseModel):
@@ -36,6 +40,32 @@ class TemplateConfig(BaseModel):
     fields: Dict[str, FieldConfig]
     platforms: List[str] = Field(default_factory=list)
     is_video: bool = False  # Flag to indicate if this is a video-based template
+    field_order: List[str] = Field(
+        default_factory=list
+    )  # Explicit order of field collection
+    platform_specific_fields: Dict[str, List[str]] = Field(
+        default_factory=dict
+    )  # Fields specific to each platform
+
+    def validate_field_dependencies(self) -> bool:
+        """Validate that all field dependencies are met"""
+        for field_name, field_config in self.fields.items():
+            for dep in field_config.depends_on:
+                if dep not in self.fields:
+                    return False
+        return True
+
+    def get_next_required_field(self, collected_fields: List[str]) -> Optional[str]:
+        """Get the next required field based on dependencies and order"""
+        for field_name in self.field_order:
+            if field_name not in collected_fields and self.fields[field_name].required:
+                all_deps_met = all(
+                    dep in collected_fields
+                    for dep in self.fields[field_name].depends_on
+                )
+                if all_deps_met:
+                    return field_name
+        return None
 
 
 # Define the centralized template configuration
@@ -62,17 +92,21 @@ TEMPLATE_CONFIGS = {
     "instagram_tips": TemplateConfig(
         type="tips",
         platforms=["instagram"],
+        field_order=["caption_text", "main_image"],
         fields={
-            "main_image": FieldConfig(
-                source=FieldSource.EXTERNAL_SERVICE,
-                prompt="We'll find a suitable image for your tips post.",
-                required=True,
-            ),
             "caption_text": FieldConfig(
                 source=FieldSource.AI_GENERATED,
                 prompt="Please provide a brief description for your tips post:",
                 workflow_state="WAITING_FOR_CAPTION",
+                next_state="SCHEDULE_SELECTION",
                 required=True,
+            ),
+            "main_image": FieldConfig(
+                source=FieldSource.EXTERNAL_SERVICE,
+                prompt="We'll find a suitable image for your tips post.",
+                required=True,
+                depends_on=["caption_text"],
+                next_state="SCHEDULE_SELECTION",
             ),
         },
     ),
@@ -110,24 +144,29 @@ TEMPLATE_CONFIGS = {
     "instagram_destination": TemplateConfig(
         type="destination",
         platforms=["instagram"],
+        field_order=["destination_name", "main_image", "post_caption"],
         fields={
-            "main_image": FieldConfig(
-                source=FieldSource.EXTERNAL_SERVICE,
-                prompt="We'll find a suitable image for your destination.",
-                required=True,
-            ),
             "destination_name": FieldConfig(
                 source=FieldSource.USER_INPUT,
                 prompt="Please enter the destination name (5 words or less):",
                 max_words=5,
                 workflow_state="WAITING_FOR_DESTINATION",
+                next_state="WAITING_FOR_CAPTION",
                 required=True,
+            ),
+            "main_image": FieldConfig(
+                source=FieldSource.EXTERNAL_SERVICE,
+                prompt="We'll find a suitable image for your destination.",
+                required=True,
+                depends_on=["destination_name"],
             ),
             "post_caption": FieldConfig(
                 source=FieldSource.AI_GENERATED,
                 prompt="Please provide a brief description for your destination post:",
                 workflow_state="WAITING_FOR_CAPTION",
+                next_state="SCHEDULE_SELECTION",
                 required=True,
+                depends_on=["destination_name"],
                 is_template_field=False,  # This field is only for the social media post
             ),
         },
@@ -135,11 +174,13 @@ TEMPLATE_CONFIGS = {
     "instagram_events": TemplateConfig(
         type="events",
         platforms=["instagram"],
+        field_order=["main_image", "event_name", "post_caption"],
         fields={
             "main_image": FieldConfig(
                 source=FieldSource.USER_INPUT,
                 prompt="Please upload an image for your event:",
                 workflow_state="WAITING_FOR_MEDIA_UPLOAD",
+                next_state="WAITING_FOR_EVENT_NAME",
                 required=True,
             ),
             "event_name": FieldConfig(
@@ -147,15 +188,24 @@ TEMPLATE_CONFIGS = {
                 prompt="Please enter the event name (5 words or less):",
                 max_words=5,
                 workflow_state="WAITING_FOR_EVENT_NAME",
+                next_state="WAITING_FOR_CAPTION",
                 required=True,
+                depends_on=["main_image"],
             ),
             "post_caption": FieldConfig(
                 source=FieldSource.AI_GENERATED,
                 prompt="Please provide a brief description for your event post:",
                 workflow_state="WAITING_FOR_CAPTION",
+                next_state="SCHEDULE_SELECTION",
                 required=True,
+                depends_on=["event_name"],
                 is_template_field=False,  # This field is only for the social media post
             ),
+        },
+        platform_specific_fields={
+            "instagram": ["main_image", "event_name", "post_caption"],
+            "linkedin": ["main_image", "event_name", "post_caption"],
+            "tiktok": ["video_background", "event_name", "post_caption"],
         },
     ),
     "instagram_seasonal": TemplateConfig(
@@ -179,17 +229,21 @@ TEMPLATE_CONFIGS = {
     "linkedin_tips": TemplateConfig(
         type="tips",
         platforms=["linkedin"],
+        field_order=["caption_text", "main_image"],
         fields={
-            "main_image": FieldConfig(
-                source=FieldSource.EXTERNAL_SERVICE,
-                prompt="We'll find a suitable image for your LinkedIn tips.",
-                required=True,
-            ),
             "caption_text": FieldConfig(
                 source=FieldSource.AI_GENERATED,
                 prompt="Please provide a brief description for your LinkedIn tips post:",
                 workflow_state="WAITING_FOR_CAPTION",
+                next_state="SCHEDULE_SELECTION",
                 required=True,
+            ),
+            "main_image": FieldConfig(
+                source=FieldSource.EXTERNAL_SERVICE,
+                prompt="We'll find a suitable image for your LinkedIn tips.",
+                required=True,
+                depends_on=["caption_text"],
+                next_state="SCHEDULE_SELECTION",
             ),
         },
     ),
@@ -310,7 +364,7 @@ def get_template_config(platform: str, content_type: str) -> Optional[TemplateCo
 
 
 def get_required_keys(platform: str, content_type: str) -> List[str]:
-    """Get required keys for a template"""
+    """Get required keys for a template, ensuring all critical fields (including post_caption) are included."""
     config = get_template_config(platform, content_type)
     if not config:
         return []
@@ -318,7 +372,8 @@ def get_required_keys(platform: str, content_type: str) -> List[str]:
     return [
         key
         for key, field_config in config.fields.items()
-        if not hasattr(field_config, "required") or field_config.required
+        if field_config.required
+        and (field_config.is_template_field or key == "post_caption")
     ]
 
 

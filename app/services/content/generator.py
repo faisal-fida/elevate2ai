@@ -5,6 +5,7 @@ from .image_service import MediaService
 from app.constants import OPENAI_PROMPTS
 from app.services.content.template_service import template_service
 from app.services.content.template_config import get_template_config
+from app.models.field_source import FieldSource
 
 
 class ContentGenerator:
@@ -72,7 +73,6 @@ class ContentGenerator:
                 key for key, field in template_config.fields.items() if field.required
             ]
             template_type = template_config.type
-            is_video_content = template_type == "video"
 
             # Generate caption
             context = {**user_inputs, "template_type": template_type}
@@ -87,33 +87,69 @@ class ContentGenerator:
                 caption_field=caption_field,
             )
 
-            # Handle media
-            search_query = user_inputs.get(
-                "destination_name", user_inputs.get("event_name", template_type)
-            )
+            # Initialize media_urls and template_data
             media_urls = []
             template_data = {}
 
             # Add the generated caption to template data
             if caption:
                 template_data[caption_field] = caption
-
-            if "event_image" in required_keys and user_inputs.get("event_image"):
-                media_urls = [user_inputs["event_image"]]
-                template_data["event_image"] = user_inputs["event_image"]
-            elif "main_image" in required_keys and not is_video_content:
-                media_urls = (
-                    await self._get_media_urls(search_query) or [self.default_image] * 4
+                context["caption"] = (
+                    caption  # Add to context for search query generation
                 )
-                template_data["media_options"] = media_urls
-            elif is_video_content:
-                media_urls = (
-                    await self._get_media_urls(search_query, is_video=True)
-                    or [self.default_video] * 4
-                )
-                template_data["media_options"] = media_urls
 
-            # Populate template data
+            # Handle media based on template configuration
+            if "main_image" in template_config.fields:
+                main_image_config = template_config.fields["main_image"]
+                # Only search for images if source is EXTERNAL_SERVICE and we don't have user input
+                if (
+                    main_image_config.source == FieldSource.EXTERNAL_SERVICE
+                    and "main_image" not in user_inputs
+                ):
+                    # Generate optimized search query using OpenAI
+                    search_query = (
+                        await self.openai_service.generate_image_search_query(
+                            template_type=template_type, context=context
+                        )
+                    )
+
+                    media_urls = (
+                        await self._get_media_urls(search_query)
+                        or [self.default_image] * 4
+                    )
+                    template_data["media_options"] = media_urls
+
+                elif "main_image" in user_inputs:
+                    # Use provided image
+                    template_data["main_image"] = user_inputs["main_image"]
+                    media_urls = [user_inputs["main_image"]]
+
+            elif "video_background" in template_config.fields:
+                video_config = template_config.fields["video_background"]
+                # Only search for videos if source is EXTERNAL_SERVICE and we don't have user input
+                if (
+                    video_config.source == FieldSource.EXTERNAL_SERVICE
+                    and "video_background" not in user_inputs
+                ):
+                    # Generate optimized search query using OpenAI
+                    search_query = (
+                        await self.openai_service.generate_image_search_query(
+                            template_type=template_type, context=context
+                        )
+                    )
+
+                    media_urls = (
+                        await self._get_media_urls(search_query, is_video=True)
+                        or [self.default_video] * 4
+                    )
+                    template_data["media_options"] = media_urls
+
+                elif "video_background" in user_inputs:
+                    # Use provided video
+                    template_data["video_background"] = user_inputs["video_background"]
+                    media_urls = [user_inputs["video_background"]]
+
+            # Populate template data with other user inputs
             for key in required_keys:
                 if key not in template_data and key in user_inputs:
                     template_data[key] = user_inputs[key]
