@@ -1,1 +1,358 @@
-{"openapi":"3.1.0","info":{"title":"Elevate2AI","description":"WhatsApp content generation service","version":"0.1.0"},"paths":{"/api/auth/register":{"post":{"tags":["Authentication"],"summary":"Register User","description":"Create new user.","operationId":"register_user_api_auth_register_post","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/UserCreate"}}},"required":true},"responses":{"201":{"description":"Successful Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/UserResponse"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/api/auth/login":{"post":{"tags":["Authentication"],"summary":"Login For Access Token Custom","description":"Login for existing user, returns access token, refresh token, and user info.\nIf user does not exist, they are created.","operationId":"login_for_access_token_custom_api_auth_login_post","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/UserLogin"}}},"required":true},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"additionalProperties":true,"type":"object","title":"Response Login For Access Token Custom Api Auth Login Post"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/api/auth/admin/users":{"get":{"tags":["Authentication"],"summary":"Read Users Admin","description":"Retrieve all users. (Admin only)","operationId":"read_users_admin_api_auth_admin_users_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"items":{"$ref":"#/components/schemas/UserResponse"},"type":"array","title":"Response Read Users Admin Api Auth Admin Users Get"}}}}},"security":[{"OAuth2PasswordBearer":[]}]}},"/api/auth/admin/users/access":{"patch":{"tags":["Authentication"],"summary":"Update User Access Admin","description":"Update a user's dashboard access. (Admin only)","operationId":"update_user_access_admin_api_auth_admin_users_access_patch","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/AdminUserUpdateAccess"}}},"required":true},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/UserResponse"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}},"security":[{"OAuth2PasswordBearer":[]}]}},"/api/auth/session/refresh":{"post":{"tags":["Authentication"],"summary":"Refresh Access Token","description":"Refresh access token using a refresh token.","operationId":"refresh_access_token_api_auth_session_refresh_post","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/RefreshTokenRequest"}}},"required":true},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Token"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/api/auth/session/revoke":{"post":{"tags":["Authentication"],"summary":"Revoke Current Session","description":"Revoke the current active session (the one used to make this request).","operationId":"revoke_current_session_api_auth_session_revoke_post","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}}},"security":[{"OAuth2PasswordBearer":[]}]}},"/":{"get":{"tags":["root"],"summary":"Root","operationId":"root__get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}}}}},"/webhook":{"get":{"summary":"Webhook Verification","operationId":"webhook_verification_webhook_get","parameters":[{"name":"hub.mode","in":"query","required":false,"schema":{"type":"string","title":"Hub.Mode"}},{"name":"hub.verify_token","in":"query","required":false,"schema":{"type":"string","title":"Hub.Verify Token"}},{"name":"hub.challenge","in":"query","required":false,"schema":{"type":"string","title":"Hub.Challenge"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}},"post":{"summary":"Webhook Handler","operationId":"webhook_handler_webhook_post","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}}}}}},"components":{"schemas":{"AdminUserUpdateAccess":{"properties":{"whatsapp_number":{"type":"string","title":"Whatsapp Number"},"has_dashboard_access":{"type":"boolean","title":"Has Dashboard Access"}},"type":"object","required":["whatsapp_number","has_dashboard_access"],"title":"AdminUserUpdateAccess"},"HTTPValidationError":{"properties":{"detail":{"items":{"$ref":"#/components/schemas/ValidationError"},"type":"array","title":"Detail"}},"type":"object","title":"HTTPValidationError"},"RefreshTokenRequest":{"properties":{"refresh_token":{"type":"string","title":"Refresh Token"}},"type":"object","required":["refresh_token"],"title":"RefreshTokenRequest"},"Token":{"properties":{"access_token":{"type":"string","title":"Access Token"},"token_type":{"type":"string","title":"Token Type"},"expires_in":{"type":"integer","title":"Expires In"},"refresh_token":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Refresh Token"}},"type":"object","required":["access_token","token_type","expires_in"],"title":"Token"},"UserCreate":{"properties":{"whatsapp_number":{"type":"string","title":"Whatsapp Number"},"password":{"type":"string","title":"Password"}},"type":"object","required":["whatsapp_number","password"],"title":"UserCreate"},"UserLogin":{"properties":{"whatsapp_number":{"type":"string","title":"Whatsapp Number"},"password":{"type":"string","title":"Password"}},"type":"object","required":["whatsapp_number","password"],"title":"UserLogin"},"UserResponse":{"properties":{"whatsapp_number":{"type":"string","title":"Whatsapp Number"},"is_active":{"type":"boolean","title":"Is Active"},"is_admin":{"type":"boolean","title":"Is Admin"},"has_dashboard_access":{"type":"boolean","title":"Has Dashboard Access"}},"type":"object","required":["whatsapp_number","is_active","is_admin","has_dashboard_access"],"title":"UserResponse"},"ValidationError":{"properties":{"loc":{"items":{"anyOf":[{"type":"string"},{"type":"integer"}]},"type":"array","title":"Location"},"msg":{"type":"string","title":"Message"},"type":{"type":"string","title":"Error Type"}},"type":"object","required":["loc","msg","type"],"title":"ValidationError"}},"securitySchemes":{"OAuth2PasswordBearer":{"type":"oauth2","flows":{"password":{"scopes":{},"tokenUrl":"/login/token"}}}}}}
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Elevate2AI",
+    "description": "WhatsApp content generation service",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register User",
+        "description": "Create new user.",
+        "operationId": "register_user_api_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UserCreate" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Login For Access Token Custom",
+        "description": "Login for existing user, returns access token, refresh token, and user info.\nIf user does not exist, they are created.",
+        "operationId": "login_for_access_token_custom_api_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UserLogin" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Login For Access Token Custom Api Auth Login Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/admin/users": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Read Users Admin",
+        "description": "Retrieve all users. (Admin only)",
+        "operationId": "read_users_admin_api_auth_admin_users_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": { "$ref": "#/components/schemas/UserResponse" },
+                  "type": "array",
+                  "title": "Response Read Users Admin Api Auth Admin Users Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [{ "OAuth2PasswordBearer": [] }]
+      }
+    },
+    "/api/auth/admin/users/access": {
+      "patch": {
+        "tags": ["Authentication"],
+        "summary": "Update User Access Admin",
+        "description": "Update a user's dashboard access. (Admin only)",
+        "operationId": "update_user_access_admin_api_auth_admin_users_access_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AdminUserUpdateAccess" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "OAuth2PasswordBearer": [] }]
+      }
+    },
+    "/api/auth/session/refresh": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Refresh Access Token",
+        "description": "Refresh access token using a refresh token.",
+        "operationId": "refresh_access_token_api_auth_session_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RefreshTokenRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Token" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/session/revoke": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Revoke Current Session",
+        "description": "Revoke the current active session (the one used to make this request).",
+        "operationId": "revoke_current_session_api_auth_session_revoke_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          }
+        },
+        "security": [{ "OAuth2PasswordBearer": [] }]
+      }
+    },
+    "/": {
+      "get": {
+        "tags": ["root"],
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          }
+        }
+      }
+    },
+    "/webhook": {
+      "get": {
+        "summary": "Webhook Verification",
+        "operationId": "webhook_verification_webhook_get",
+        "parameters": [
+          {
+            "name": "hub.mode",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "title": "Hub.Mode" }
+          },
+          {
+            "name": "hub.verify_token",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "title": "Hub.Verify Token" }
+          },
+          {
+            "name": "hub.challenge",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "title": "Hub.Challenge" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Webhook Handler",
+        "operationId": "webhook_handler_webhook_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdminUserUpdateAccess": {
+        "properties": {
+          "whatsapp_number": { "type": "string", "title": "Whatsapp Number" },
+          "has_dashboard_access": {
+            "type": "boolean",
+            "title": "Has Dashboard Access"
+          }
+        },
+        "type": "object",
+        "required": ["whatsapp_number", "has_dashboard_access"],
+        "title": "AdminUserUpdateAccess"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": { "$ref": "#/components/schemas/ValidationError" },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "RefreshTokenRequest": {
+        "properties": {
+          "refresh_token": { "type": "string", "title": "Refresh Token" }
+        },
+        "type": "object",
+        "required": ["refresh_token"],
+        "title": "RefreshTokenRequest"
+      },
+      "Token": {
+        "properties": {
+          "access_token": { "type": "string", "title": "Access Token" },
+          "token_type": { "type": "string", "title": "Token Type" },
+          "expires_in": { "type": "integer", "title": "Expires In" },
+          "refresh_token": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Refresh Token"
+          }
+        },
+        "type": "object",
+        "required": ["access_token", "token_type", "expires_in"],
+        "title": "Token"
+      },
+      "UserCreate": {
+        "properties": {
+          "whatsapp_number": { "type": "string", "title": "Whatsapp Number" },
+          "password": { "type": "string", "title": "Password" }
+        },
+        "type": "object",
+        "required": ["whatsapp_number", "password"],
+        "title": "UserCreate"
+      },
+      "UserLogin": {
+        "properties": {
+          "whatsapp_number": { "type": "string", "title": "Whatsapp Number" },
+          "password": { "type": "string", "title": "Password" }
+        },
+        "type": "object",
+        "required": ["whatsapp_number", "password"],
+        "title": "UserLogin"
+      },
+      "UserResponse": {
+        "properties": {
+          "whatsapp_number": { "type": "string", "title": "Whatsapp Number" },
+          "is_active": { "type": "boolean", "title": "Is Active" },
+          "is_admin": { "type": "boolean", "title": "Is Admin" },
+          "has_dashboard_access": {
+            "type": "boolean",
+            "title": "Has Dashboard Access"
+          }
+        },
+        "type": "object",
+        "required": [
+          "whatsapp_number",
+          "is_active",
+          "is_admin",
+          "has_dashboard_access"
+        ],
+        "title": "UserResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": { "type": "string", "title": "Message" },
+          "type": { "type": "string", "title": "Error Type" }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": { "password": { "scopes": {}, "tokenUrl": "/login/token" } }
+      }
+    }
+  }
+}
